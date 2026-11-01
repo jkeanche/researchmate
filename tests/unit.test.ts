@@ -72,6 +72,13 @@ describe("environment validation", () => {
     expect(() => parseEnv({ ...good, NODE_ENV: "production", APP_URL: "http://example.com" })).toThrow(/APP_URL|EMAIL_HOST/);
   });
 
+  it("allows plain http in production only on loopback", () => {
+    const prod = { ...good, NODE_ENV: "production", EMAIL_HOST: "smtp.example.com" };
+    expect(parseEnv({ ...prod, APP_URL: "http://localhost:3000" }).APP_URL).toBe("http://localhost:3000");
+    expect(() => parseEnv({ ...prod, APP_URL: "http://researchmate.example.com" })).toThrow(/https/);
+    expect(parseEnv({ ...prod, APP_URL: "https://researchmate.example.com" }).NODE_ENV).toBe("production");
+  });
+
   it("requires S3 settings when the S3 driver is selected", () => {
     expect(() => parseEnv({ ...good, STORAGE_DRIVER: "s3" })).toThrow(/S3_BUCKET/);
   });

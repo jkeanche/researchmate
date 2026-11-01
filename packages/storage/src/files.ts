@@ -10,7 +10,7 @@ import {
   userProfiles,
 } from "@researchmate/database";
 import { checkUploadQuota, featureEnabled, lockOrganization } from "@researchmate/entitlements";
-import { AppError, logger } from "@researchmate/shared";
+import { AppError, isAppError, logger } from "@researchmate/shared";
 import { getOrgAccess, getProjectAccess, recordAudit, requireOrgPermission, requireProjectPermission } from "@researchmate/tenancy";
 import { and, desc, eq, inArray, isNotNull, isNull, lt, or, sql } from "drizzle-orm";
 import { detectContentType, sanitizeFilename, UnsupportedFileTypeError } from "./content-type";
@@ -270,7 +270,7 @@ export class FileService {
         if (!ok) throw new AppError("FORBIDDEN", "You do not have access to this file.");
       }
     } catch (err) {
-      if (err instanceof AppError && err.code === "NOT_FOUND") throw new AppError("NOT_FOUND", "File not found.");
+      if (isAppError(err) && err.code === "NOT_FOUND") throw new AppError("NOT_FOUND", "File not found.");
       throw err;
     }
     return file;
@@ -351,6 +351,7 @@ function listFilesQuery(db: DbOrTx, organizationId: string, extra: ReturnType<ty
       createdAt: files.createdAt,
       updatedAt: files.updatedAt,
       uploadedBy: userProfiles.displayName,
+      uploadedByUserId: files.uploadedByUserId,
       sizeBytes: fileVersions.sizeBytes,
     })
     .from(files)

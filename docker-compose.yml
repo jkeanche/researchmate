@@ -1,0 +1,107 @@
+# ResearchMate AI — production stack for a single Ubuntu VPS.
+#
+#   cp .env.example .env   # fill in secrets
+#   docker compose up -d --build
+#   docker compose run --rm migrate            # first deploy and after upgrades
+#   docker compose run --rm worker node --import tsx src/scripts/create-admin.ts
+#
+# Persistent data lives in named volumes (database, Redis, research files,
+# backups). Nothing is stored in container filesystems.
+
+x-app-env: &app-env
+  env_file: .env
+  environment:
+    NODE_ENV: production
+    DATABASE_URL: postgres://${POSTGRES_USER:-researchmate}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-researchmate}
+    REDIS_URL: redis://redis:6379/0
+    LOCAL_STORAGE_ROOT: /var/lib/researchmate
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-researchmate}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-researchmate}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks: [internal]
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory-policy", "noeviction"]
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks: [internal]
+
+  migrate:
+    <<: *app-env
+    build: { context: ., dockerfile: infrastructure/docker/worker.Dockerfile }
+    image: researchmate-worker:latest
+    working_dir: /repo/packages/database
+    command: ["node", "--import", "tsx", "src/scripts/migrate.ts"]
+    depends_on:
+      postgres: { condition: service_healthy }
+    profiles: ["tools"]
+    networks: [internal]
+
+  researchmate-web:
+    <<: *app-env
+    build: { context: ., dockerfile: infrastructure/docker/web.Dockerfile }
+    image: researchmate-web:latest
+    restart: unless-stopped
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    volumes:
+      - research-files:/var/lib/researchmate
+    networks: [internal, edge]
+
+  # Runs background jobs and owns scheduled maintenance (BullMQ job schedulers
+  # are idempotent, so this also covers the "scheduler" role from the spec).
+  researchmate-worker:
+    <<: *app-env
+    image: researchmate-worker:latest
+    build: { context: ., dockerfile: infrastructure/docker/worker.Dockerfile }
+    restart: unless-stopped
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    volumes:
+      - research-files:/var/lib/researchmate
+    networks: [internal]
+
+  nginx:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    depends_on: [researchmate-web]
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./infrastructure/nginx/researchmate.conf:/etc/nginx/conf.d/default.conf:ro
+      - ${TLS_CERT_DIR:-./infrastructure/nginx/certs}:/etc/nginx/certs:ro
+      - certbot-webroot:/var/www/certbot:ro
+    networks: [edge]
+
+volumes:
+  postgres-data:
+  redis-data:
+  research-files:
+  certbot-webroot:
+
+networks:
+  internal:
+  edge:

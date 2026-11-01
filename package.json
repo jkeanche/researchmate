@@ -18,9 +18,11 @@
     "db:generate": "pnpm --filter @researchmate/database generate",
     "db:migrate": "pnpm --filter @researchmate/database migrate",
     "db:seed": "pnpm --filter @researchmate/database seed",
-    "admin:create": "pnpm --filter @researchmate/worker admin:create"
+    "admin:create": "pnpm --filter @researchmate/worker admin:create",
+    "test:e2e": "playwright test"
   },
   "devDependencies": {
+    "@playwright/test": "1.63.0",
     "@researchmate/auth": "workspace:*",
     "@researchmate/database": "workspace:*",
     "@researchmate/entitlements": "workspace:*",

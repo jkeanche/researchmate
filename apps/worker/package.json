@@ -1,0 +1,26 @@
+{
+  "name": "@researchmate/worker",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch --env-file-if-exists=../../.env src/index.ts",
+    "start": "tsx src/index.ts",
+    "typecheck": "tsc -p tsconfig.json",
+    "admin:create": "tsx --env-file-if-exists=../../.env src/scripts/create-admin.ts"
+  },
+  "dependencies": {
+    "@researchmate/auth": "workspace:*",
+    "@researchmate/database": "workspace:*",
+    "@researchmate/shared": "workspace:*",
+    "@researchmate/storage": "workspace:*",
+    "@researchmate/tenancy": "workspace:*",
+    "bullmq": "5.81.5",
+    "drizzle-orm": "0.45.4",
+    "nodemailer": "7.0.13",
+    "tsx": "4.23.15"
+  },
+  "devDependencies": {
+    "@types/nodemailer": "7.0.12"
+  }
+}

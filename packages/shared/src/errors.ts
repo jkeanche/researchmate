@@ -29,7 +29,10 @@ const STATUS: Record<AppErrorCode, number> = {
   INTERNAL: 500,
 };
 
+const BRAND = Symbol.for("researchmate.AppError");
+
 export class AppError extends Error {
+  readonly [BRAND] = true;
   readonly code: AppErrorCode;
   readonly details?: Record<string, unknown>;
 
@@ -45,6 +48,10 @@ export class AppError extends Error {
   }
 }
 
+/**
+ * Brand check instead of instanceof: bundlers can load this module more than
+ * once (e.g. separate server chunks), which breaks instanceof across copies.
+ */
 export function isAppError(e: unknown): e is AppError {
-  return e instanceof AppError;
+  return typeof e === "object" && e !== null && (e as Record<symbol, unknown>)[BRAND] === true;
 }

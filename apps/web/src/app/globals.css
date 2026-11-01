@@ -1,0 +1,154 @@
+@import "tailwindcss";
+
+@theme {
+  --color-ink: #1b2a3a;
+  --color-paper: #f6f7f5;
+  --color-sheet: #ffffff;
+  --color-green: #2f6b4f;
+  --color-green-dark: #24543e;
+  --color-green-wash: #e6efe9;
+  --color-margin: #b23a3a;
+  --color-margin-wash: #f7e7e6;
+  --color-rule: #cad6e2;
+  --color-rule-soft: #e3eaf1;
+  --color-graphite: #56636f;
+  --color-amber: #8a5a12;
+  --color-amber-wash: #f6eedf;
+
+  --font-serif: "Literata Variable", Georgia, "Times New Roman", serif;
+  --font-sans: "Public Sans Variable", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+html {
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  min-height: 100vh;
+  line-height: 1.55;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-serif);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-green);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
+a {
+  color: inherit;
+}
+
+/* The notebook margin: a single red rule down the workspace. */
+.margin-rule {
+  position: relative;
+}
+.margin-rule::before {
+  content: "";
+  position: absolute;
+  inset-block: 0;
+  left: 0;
+  width: 2px;
+  background: var(--color-margin);
+  opacity: 0.55;
+}
+
+/* Ruled rows, like lined paper. */
+.ruled > * + * {
+  border-top: 1px solid var(--color-rule-soft);
+}
+
+/* Form controls */
+.field {
+  display: grid;
+  gap: 0.35rem;
+}
+.field label {
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+.field .hint {
+  font-size: 0.8125rem;
+  color: var(--color-graphite);
+}
+.input {
+  width: 100%;
+  border: 1px solid var(--color-rule);
+  background: var(--color-sheet);
+  border-radius: 6px;
+  padding: 0.55rem 0.7rem;
+  font: inherit;
+  color: inherit;
+}
+.input:focus {
+  outline: 2px solid var(--color-green);
+  outline-offset: 0;
+  border-color: transparent;
+}
+textarea.input {
+  min-height: 6rem;
+  resize: vertical;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  border-radius: 6px;
+  padding: 0.55rem 1rem;
+  font-weight: 600;
+  font-size: 0.9375rem;
+  border: 1px solid transparent;
+  cursor: pointer;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.btn:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+.btn-primary {
+  background: var(--color-green);
+  color: #fff;
+}
+.btn-primary:hover {
+  background: var(--color-green-dark);
+}
+.btn-quiet {
+  background: transparent;
+  border-color: var(--color-rule);
+  color: var(--color-ink);
+}
+.btn-quiet:hover {
+  background: var(--color-rule-soft);
+}
+.btn-danger {
+  background: transparent;
+  border-color: color-mix(in srgb, var(--color-margin) 40%, transparent);
+  color: var(--color-margin);
+}
+.btn-danger:hover {
+  background: var(--color-margin-wash);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}

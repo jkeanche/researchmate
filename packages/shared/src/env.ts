@@ -71,7 +71,10 @@ const envSchema = z
       if (!env.EMAIL_HOST) {
         ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["EMAIL_HOST"], message: "is required in production (verification and password-reset emails)" });
       }
-      if (!env.APP_URL.startsWith("https://")) {
+      // Plain http is only tolerated on loopback (local production-mode testing).
+      const host = new URL(env.APP_URL).hostname;
+      const loopback = host === "localhost" || host === "127.0.0.1" || host === "[::1]";
+      if (!env.APP_URL.startsWith("https://") && !loopback) {
         ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["APP_URL"], message: "must use https in production" });
       }
     }
