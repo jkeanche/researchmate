@@ -1,0 +1,45 @@
+{
+  "name": "researchmate-ai",
+  "private": true,
+  "version": "0.1.0",
+  "packageManager": "pnpm@10.28.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "pnpm --filter @researchmate/web dev",
+    "dev:worker": "pnpm --filter @researchmate/worker dev",
+    "build": "pnpm --filter @researchmate/web build",
+    "start": "pnpm --filter @researchmate/web start",
+    "worker": "pnpm --filter @researchmate/worker start",
+    "typecheck": "pnpm -r --parallel typecheck",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "db:generate": "pnpm --filter @researchmate/database generate",
+    "db:migrate": "pnpm --filter @researchmate/database migrate",
+    "db:seed": "pnpm --filter @researchmate/database seed",
+    "admin:create": "pnpm --filter @researchmate/worker admin:create"
+  },
+  "devDependencies": {
+    "@researchmate/auth": "workspace:*",
+    "@researchmate/database": "workspace:*",
+    "@researchmate/entitlements": "workspace:*",
+    "@researchmate/research": "workspace:*",
+    "@researchmate/shared": "workspace:*",
+    "@researchmate/storage": "workspace:*",
+    "@researchmate/tenancy": "workspace:*",
+    "@types/node": "22.20.5",
+    "drizzle-orm": "0.45.4",
+    "postgres": "3.4.9",
+    "tsx": "4.23.15",
+    "typescript": "5.9.3",
+    "vitest": "3.2.7"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "sharp",
+      "msgpackr-extract"
+    ]
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "name": "@researchmate/entitlements",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@researchmate/database": "workspace:*",
+    "@researchmate/shared": "workspace:*",
+    "drizzle-orm": "0.45.4"
+  }
+}

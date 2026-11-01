@@ -1,0 +1,24 @@
+{
+  "name": "@researchmate/auth",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@node-rs/argon2": "2.2.2",
+    "@researchmate/database": "workspace:*",
+    "@researchmate/shared": "workspace:*",
+    "@researchmate/tenancy": "workspace:*",
+    "drizzle-orm": "0.45.4",
+    "ioredis": "5.11.1",
+    "qrcode": "1.5.4"
+  },
+  "devDependencies": {
+    "@types/qrcode": "1.5.5"
+  }
+}

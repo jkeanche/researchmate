@@ -1,0 +1,20 @@
+{
+  "name": "@researchmate/storage",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@researchmate/database": "workspace:*",
+    "@researchmate/entitlements": "workspace:*",
+    "@researchmate/shared": "workspace:*",
+    "@researchmate/tenancy": "workspace:*",
+    "drizzle-orm": "0.45.4",
+    "file-type": "21.3.4"
+  }
+}
