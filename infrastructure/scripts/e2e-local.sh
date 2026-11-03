@@ -34,7 +34,7 @@ cp -r apps/web/.next/static "$STANDALONE/apps/web/.next/static"
 node "$STANDALONE/apps/web/server.js" > /var/tmp/researchmate-web.log 2>&1 & pids+=($!)
 (cd apps/worker && node --import tsx src/index.ts > /var/tmp/researchmate-worker.log 2>&1) & pids+=($!)
 
-for i in $(seq 1 30); do curl -fs http://127.0.0.1:3000/api/health >/dev/null && break; sleep 1; done
+for _ in $(seq 1 30); do curl -fs http://127.0.0.1:3000/api/health >/dev/null && break; sleep 1; done
 curl -fs http://127.0.0.1:3000/api/health
 
 E2E_BASE_URL=http://localhost:3000 pnpm exec playwright test "$@"

@@ -2,6 +2,13 @@
 
 Newest first. One entry per working session.
 
+## 2026-11-03 — Native Ubuntu install (Nginx + PostgreSQL, no Docker)
+
+- `infrastructure/scripts/install-ubuntu.sh`: one command installs packages, creates the service user, database and role, writes `/etc/researchmate/researchmate.env` with generated secrets (kept on re-runs), configures Nginx (Let's Encrypt or own certificate), builds a release, migrates, switches the `current` link, installs systemd units and creates the administrator. Re-running upgrades.
+- systemd units in `infrastructure/systemd/`: web, `worker@jobs`, `worker@scheduler`, nightly backup timer; hardened (ProtectSystem=strict, PrivateTmp, NoNewPrivileges). `backup-native.sh` added; `verify-backup.sh` gained `VERIFY_LOCAL_POSTGRES=1`.
+- Found while testing on Ubuntu 24.04: proxy variables stripped by `env -i` (now passed through); IPv6 listen lines broke `nginx -t` without IPv6 (now conditional); readline consumed piped admin password (now via a private file); a stopping worker deleted the shared heartbeat key so health showed the worker missing (no longer deleted); Nginx rate-limit responses were 503 (now 429); a failed Nginx step could leave a half-switched release (Nginx now configured before the build, and a failed test restores the previous config).
+- Guide: `docs/deployment/ubuntu-native.md`. Not exercisable here: a running systemd, Let's Encrypt, NodeSource install.
+
 ## 2026-11-02 — Milestone 11 (production hardening)
 
 - Notifications (§30): in-app + email with preferences (security alerts locked on), dedupe, SKIP LOCKED email delivery; wired to deadlines, reviews, exports, storage/AI/budget thresholds, expenses, funding, billing, Drive, and security events incl. new-device sign-in.

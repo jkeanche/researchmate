@@ -56,7 +56,16 @@ The S3 driver tests run against a real S3-protocol server: set `TEST_S3_ENDPOINT
 
 ## Production
 
-See [docs/deployment/ubuntu-vps.md](docs/deployment/ubuntu-vps.md). In short:
+Two supported ways to run it on Ubuntu:
+
+- **Native, with the server's own Nginx and PostgreSQL:** [docs/deployment/ubuntu-native.md](docs/deployment/ubuntu-native.md). One command installs, configures and starts everything, and re-running it upgrades:
+
+  ```bash
+  sudo infrastructure/scripts/install-ubuntu.sh --domain research.example.org --email you@example.org --tls \
+    --smtp-host smtp.example.org --smtp-user apikey --smtp-password-file /root/smtp-password --admin-email you@example.org
+  ```
+
+- **Docker Compose:** [docs/deployment/ubuntu-vps.md](docs/deployment/ubuntu-vps.md). In short:
 
 ```bash
 cp .env.example .env    # fill in secrets, SMTP, domain

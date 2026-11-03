@@ -1,0 +1,12 @@
+# Daily backup of the database and research files (see researchmate-backup.timer).
+[Unit]
+Description=ResearchMate backup
+After=postgresql.service
+
+[Service]
+Type=oneshot
+User=@USER@
+Group=@USER@
+ExecStart=@APP_DIR@/current/infrastructure/scripts/backup-native.sh --env-file @ENV_FILE@ --dest @BACKUP_DIR@
+Nice=10
+IOSchedulingClass=idle

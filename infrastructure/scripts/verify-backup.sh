@@ -9,12 +9,14 @@
 #
 #   infrastructure/scripts/verify-backup.sh backups/researchmate-20261101T000000Z
 #
-# By default it runs Postgres commands inside the Compose "postgres" service.
-# Set VERIFY_ADMIN_URL=postgres://user:pass@host:5432/postgres to use local
-# client tools against another server instead (e.g. a separate restore host).
+# Where the temporary database is created:
+#   default                 inside the Compose "postgres" service (Docker install)
+#   VERIFY_LOCAL_POSTGRES=1 the local server, as the postgres system user (native
+#                           install from install-ubuntu.sh; run with sudo)
+#   VERIFY_ADMIN_URL=postgres://user:pass@host:5432/postgres   any server, with local client tools
 set -euo pipefail
 cd "$(dirname "$0")/../.."
-[ -f .env ] && { set -a; source .env; set +a; }
+if [ -z "${VERIFY_ADMIN_URL:-}" ] && [ "${VERIFY_LOCAL_POSTGRES:-0}" != 1 ] && [ -f .env ]; then set -a; source .env; set +a; fi
 
 SRC="${1:?usage: verify-backup.sh <backup-dir>}"
 WORK="$(mktemp -d)"
@@ -25,6 +27,8 @@ pg() { # pg <tool> [args...]  — runs a Postgres client tool against the admin 
   local tool="$1"; shift
   if [ -n "${VERIFY_ADMIN_URL:-}" ]; then
     "$tool" "$@"
+  elif [ "${VERIFY_LOCAL_POSTGRES:-0}" = 1 ]; then
+    runuser -u postgres -- "$tool" "$@"
   else
     docker compose exec -T postgres "$tool" -U "${POSTGRES_USER:-researchmate}" "$@"
   fi
@@ -42,8 +46,9 @@ for f in database.dump files.tar.gz; do
 done
 
 echo "3/5 Restoring into temporary database $DB"
-pg createdb $( [ -n "${VERIFY_ADMIN_URL:-}" ] && echo "--maintenance-db=$VERIFY_ADMIN_URL" ) "$DB"
-cleanup_db() { pg dropdb $( [ -n "${VERIFY_ADMIN_URL:-}" ] && echo "--maintenance-db=$VERIFY_ADMIN_URL" ) --if-exists "$DB" >/dev/null 2>&1 || true; }
+MAINT=(); [ -z "${VERIFY_ADMIN_URL:-}" ] || MAINT=("--maintenance-db=$VERIFY_ADMIN_URL")
+pg createdb "${MAINT[@]}" "$DB"
+cleanup_db() { pg dropdb "${MAINT[@]}" --if-exists "$DB" >/dev/null 2>&1 || true; }
 trap 'cleanup_db; rm -rf "$WORK"' EXIT
 pg pg_restore --no-owner --exit-on-error "$(url_for "$DB")" < "$WORK/database.dump"
 q() { pg psql "$(url_for "$DB")" -Atc "$1"; }

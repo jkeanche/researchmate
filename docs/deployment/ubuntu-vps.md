@@ -1,5 +1,7 @@
 # Deploying on an Ubuntu VPS
 
+> Prefer no Docker? [ubuntu-native.md](ubuntu-native.md) installs on the server's own Nginx, PostgreSQL and Redis with one script.
+
 Tested target: Ubuntu 22.04/24.04, 2 vCPU, 4 GB RAM, 40 GB disk (more disk for research files).
 
 ## 1. Prepare the server

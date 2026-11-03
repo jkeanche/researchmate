@@ -1,0 +1,35 @@
+# ResearchMate web app (Next.js standalone server). Rendered by
+# infrastructure/scripts/install-ubuntu.sh: @PLACEHOLDERS@ are filled in.
+[Unit]
+Description=ResearchMate web app
+After=network-online.target postgresql.service redis-server.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=@USER@
+Group=@USER@
+EnvironmentFile=@ENV_FILE@
+Environment=NODE_ENV=production PORT=@PORT@ HOSTNAME=127.0.0.1 NEXT_TELEMETRY_DISABLED=1
+WorkingDirectory=@APP_DIR@/current/apps/web/.next/standalone/apps/web
+ExecStart=@NODE@ server.js
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=30
+
+# Hardening: read-only system, writable research data only.
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+ReadWritePaths=@DATA_DIR@
+UMask=0027
+
+[Install]
+WantedBy=multi-user.target

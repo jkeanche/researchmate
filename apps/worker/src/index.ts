@@ -180,11 +180,14 @@ for (const w of [emailWorker, maintenanceWorker, aiWorker, driveWorker, filesWor
 const startedAt = new Date().toISOString();
 const HEARTBEAT = RUN_JOBS ? WORKER_HEARTBEAT_KEY : `${WORKER_HEARTBEAT_KEY}:scheduler`;
 // The file lets Docker's HEALTHCHECK see liveness without network access (see worker.Dockerfile).
+// Independent: a failing file write never stops the Redis heartbeat (and vice versa).
 const beat = () =>
-  Promise.all([
+  Promise.allSettled([
     getRedis().set(HEARTBEAT, JSON.stringify({ at: new Date().toISOString(), pid: process.pid, startedAt, role: ROLE }), "EX", 120),
     writeFile(process.env.WORKER_HEARTBEAT_FILE ?? "/tmp/researchmate-heartbeat", new Date().toISOString()),
-  ]).catch((err) => logger.warn("worker.heartbeat_failed", { error: String(err) }));
+  ]).then((rs) => {
+    for (const r of rs) if (r.status === "rejected") logger.warn("worker.heartbeat_failed", { error: String(r.reason) });
+  });
 const heartbeat = setInterval(beat, 30_000);
 
 async function main() {
@@ -200,8 +203,9 @@ async function main() {
 
 async function shutdown(signal: string) {
   logger.info("worker.stopping", { signal });
+  // The heartbeat key is shared by all worker instances, so it isn't deleted here: another
+  // instance may still be running (or a replacement already started). It expires after 2 minutes.
   clearInterval(heartbeat);
-  await getRedis().del(HEARTBEAT).catch(() => {});
   await Promise.allSettled([emailWorker.close(), maintenanceWorker.close(), aiWorker.close(), driveWorker.close(), filesWorker.close(), documentsWorker.close(), integrationsWorker.close(), filesQueue.close(), maintenanceQueue.close(), emailQueue.close()]);
   await closeDb();
   process.exit(0);

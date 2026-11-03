@@ -1,0 +1,37 @@
+# ResearchMate background worker. The instance name is the role:
+#   researchmate-worker@jobs       email, extraction, documents, AI, Drive, integrations
+#   researchmate-worker@scheduler  registers the recurring maintenance jobs (run one)
+# Rendered by infrastructure/scripts/install-ubuntu.sh.
+[Unit]
+Description=ResearchMate worker (%i)
+After=network-online.target postgresql.service redis-server.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=@USER@
+Group=@USER@
+EnvironmentFile=@ENV_FILE@
+# HOME=/tmp: LibreOffice needs a writable profile directory (PrivateTmp keeps it per service).
+Environment=NODE_ENV=production WORKER_ROLE=%i HOME=/tmp WORKER_HEARTBEAT_FILE=/tmp/researchmate-heartbeat
+WorkingDirectory=@APP_DIR@/current/apps/worker
+ExecStart=@NODE@ --import tsx src/index.ts
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=60
+
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+ReadWritePaths=@DATA_DIR@
+UMask=0027
+
+[Install]
+WantedBy=multi-user.target
