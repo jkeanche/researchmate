@@ -295,10 +295,13 @@ export async function getLimitStatus(db: DbOrTx, organizationId: string): Promis
     "files.max_size_bytes": 0,
     "storage.max_bytes": usage.storageBytes,
     "members.max": usage.members,
+    "planning.tasks.max": 0, // per project; reported on the project's planning pages
+    "ai.runs.monthly": 0, // reported on the AI pages
+    "ai.platform.allowance": 0, // reported on the billing page
   };
   const limits = (Object.keys(used) as LimitKey[]).map((key) => {
     const limit = limitOf(entitlements, key);
-    return { key, limit, used: used[key], over: limit !== null && key !== "files.max_size_bytes" && used[key] > limit };
+    return { key, limit, used: used[key], over: limit !== null && key !== "files.max_size_bytes" && key !== "planning.tasks.max" && key !== "ai.runs.monthly" && key !== "ai.platform.allowance" && used[key] > limit };
   });
   return { entitlements, usage, limits };
 }

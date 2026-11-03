@@ -11,6 +11,13 @@ import { AppError } from "@researchmate/shared";
 import { getOrgAccess, getProjectAccess, recordAudit, requireOrgPermission, requireProjectPermission } from "@researchmate/tenancy";
 import { and, desc, eq, inArray, ne } from "drizzle-orm";
 import { z } from "zod";
+import { optionalDate, optionalInt, optionalText, parse } from "./util";
+import { copyTemplateToProject, defaultTemplateKeyFor } from "./workflow";
+
+export * from "./content";
+export * from "./members";
+export * from "./workflow";
+export { parse } from "./util";
 
 export { CITATION_STYLES, PROJECT_STATUSES, RESEARCH_TYPES };
 
@@ -47,43 +54,6 @@ export const STATUS_LABELS: Record<(typeof PROJECT_STATUSES)[number], string> = 
   archived: "Archived",
 };
 
-const optionalText = (max: number) =>
-  z
-    .string()
-    .trim()
-    .max(max)
-    .optional()
-    .nullable()
-    .transform((v) => (v ? v : null));
-
-const optionalInt = (max: number) =>
-  z
-    .union([z.number(), z.string()])
-    .optional()
-    .nullable()
-    .transform((v, ctx) => {
-      if (v === undefined || v === null || v === "") return null;
-      const n = typeof v === "number" ? v : Number(v);
-      if (!Number.isInteger(n) || n < 0 || n > max) {
-        ctx.addIssue({ code: z.ZodIssueCode.custom, message: `must be a whole number between 0 and ${max}` });
-        return z.NEVER;
-      }
-      return n;
-    });
-
-const optionalDate = z
-  .string()
-  .optional()
-  .nullable()
-  .transform((v, ctx) => {
-    if (!v) return null;
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(v) || Number.isNaN(Date.parse(v))) {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "must be a valid date" });
-      return z.NEVER;
-    }
-    return v;
-  });
-
 export const projectInputSchema = z
   .object({
     title: z.string().trim().min(3, "Title must be at least 3 characters").max(300),
@@ -108,21 +78,13 @@ export const projectInputSchema = z
 export const projectUpdateSchema = projectInputSchema.innerType().partial().extend({
   status: z.enum(PROJECT_STATUSES).optional(),
   progressPercent: optionalInt(100),
+  progressSource: z.enum(["manual", "tasks"]).optional(),
 });
 
-export type ProjectInput = z.input<typeof projectInputSchema>;
-
-function parse<T extends z.ZodTypeAny>(schema: T, input: unknown): z.output<T> {
-  const r = schema.safeParse(input);
-  if (!r.success) {
-    const first = r.error.issues[0]!;
-    const field = first.path.join(".");
-    throw new AppError("VALIDATION", field && !first.message.includes(" ") ? `${field}: ${first.message}` : first.message, {
-      fields: Object.fromEntries(r.error.issues.map((i) => [i.path.join("."), i.message])),
-    });
-  }
-  return r.data;
-}
+export type ProjectInput = z.input<typeof projectInputSchema> & {
+  /** Workflow template to copy; undefined = the default for the research type; "" = none. */
+  workflowTemplateKey?: string;
+};
 
 export class ProjectService {
   constructor(private readonly db: Database) {}
@@ -138,6 +100,8 @@ export class ProjectService {
         .values({ ...data, organizationId, createdByUserId: actorUserId, status: "draft" })
         .returning();
       await tx.insert(projectMembers).values({ projectId: project!.id, userId: actorUserId, roleKey: "project_lead" });
+      const templateKey = input.workflowTemplateKey === undefined ? await defaultTemplateKeyFor(tx, organizationId, data.researchType) : input.workflowTemplateKey || null;
+      if (templateKey) await copyTemplateToProject(tx, project!.id, organizationId, templateKey);
       await recordAudit(tx, { organizationId, actorUserId, action: "project.created", targetType: "project", targetId: project!.id, metadata: { title: data.title } });
       return project!;
     });
@@ -163,6 +127,8 @@ export class ProjectService {
     const end = data.expectedCompletionDate !== undefined ? data.expectedCompletionDate : current.expectedCompletionDate;
     if (start && end && end < start) throw new AppError("VALIDATION", "Expected completion must be on or after the start date.");
 
+    // Progress is derived from tasks unless the project uses manual progress.
+    if ((data.progressSource ?? current.progressSource) === "tasks") delete (data as { progressPercent?: unknown }).progressPercent;
     const patch = Object.fromEntries(Object.entries(data).filter(([, v]) => v !== undefined));
     const [updated] = await this.db
       .update(researchProjects)
@@ -237,3 +203,4 @@ export class ProjectService {
   }
 }
 
+export * from "./search";

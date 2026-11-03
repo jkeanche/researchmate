@@ -1,0 +1,25 @@
+{
+  "name": "@researchmate/toolkit",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": { ".": "./src/index.ts" },
+  "scripts": { "typecheck": "tsc -p tsconfig.json" },
+  "dependencies": {
+    "@researchmate/database": "workspace:*",
+    "@researchmate/documents": "workspace:*",
+    "@researchmate/entitlements": "workspace:*",
+    "@researchmate/research": "workspace:*",
+    "@researchmate/shared": "workspace:*",
+    "@researchmate/storage": "workspace:*",
+    "@researchmate/tenancy": "workspace:*",
+    "docx": "9.10.0",
+    "drizzle-orm": "0.45.4",
+    "exceljs": "4.4.0",
+    "jstat": "1.9.6",
+    "papaparse": "5.5.3",
+    "pptxgenjs": "4.0.1",
+    "zod": "3.25.76"
+  },
+  "devDependencies": { "@types/papaparse": "5.3.16" }
+}

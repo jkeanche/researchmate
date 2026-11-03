@@ -1,6 +1,6 @@
 import { createHmac, randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Page } from "./base";
 
 /**
  * Milestone-1 lifecycle: register → verify email → sign in → create project →

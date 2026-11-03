@@ -4,6 +4,7 @@ import { decryptSecret, encryptSecret, parseEnv } from "@researchmate/shared";
 import { detectContentType, sanitizeFilename } from "@researchmate/storage";
 import { slugify } from "@researchmate/tenancy";
 import { formatBytes } from "@researchmate/entitlements";
+import { providersFromEnv } from "@researchmate/billing";
 
 describe("TOTP (RFC 4226 / 6238)", () => {
   // RFC 4226 Appendix D test vectors, secret "12345678901234567890".
@@ -61,6 +62,20 @@ describe("environment validation", () => {
 
   it("accepts a minimal valid configuration", () => {
     expect(parseEnv(good).STORAGE_DRIVER).toBe("local");
+  });
+
+  it("accepts the specification's variable names as aliases; explicit names win", () => {
+    const a = parseEnv({ ...good, DEFAULT_AI_PROVIDER: "anthropic", DEFAULT_AI_MODEL: "claude-x", ANTHROPIC_API_KEY: "sk-ant", OPENAI_API_KEY: "sk-oai", APIFY_API_TOKEN: "apify" });
+    expect(a).toMatchObject({ PLATFORM_AI_PROVIDER: "anthropic", PLATFORM_AI_MODEL: "claude-x", PLATFORM_AI_API_KEY: "sk-ant", APIFY_TOKEN: "apify" });
+    const b = parseEnv({ ...good, DEFAULT_AI_PROVIDER: "anthropic", PLATFORM_AI_PROVIDER: "openai", OPENAI_API_KEY: "sk-oai", APIFY_TOKEN: "explicit", APIFY_API_TOKEN: "alias" });
+    expect(b).toMatchObject({ PLATFORM_AI_PROVIDER: "openai", PLATFORM_AI_API_KEY: "sk-oai", APIFY_TOKEN: "explicit" });
+    expect(() => parseEnv({ ...good, METRICS_TOKEN: "short" })).toThrow(/METRICS_TOKEN/);
+  });
+
+  it("PAYMENT_PROVIDER puts the preferred provider first", () => {
+    const base = { PAYSTACK_SECRET_KEY: "sk", PESAPAL_CONSUMER_KEY: "ck", PESAPAL_CONSUMER_SECRET: "cs", STRIPE_SECRET_KEY: "s", STRIPE_WEBHOOK_SECRET: "w" };
+    expect(providersFromEnv(base).map((p) => p.key)).toEqual(["paystack", "pesapal", "stripe"]);
+    expect(providersFromEnv({ ...base, PAYMENT_PROVIDER: "Stripe" }).map((p) => p.key)).toEqual(["stripe", "paystack", "pesapal"]);
   });
 
   it("fails when secrets are missing or weak", () => {

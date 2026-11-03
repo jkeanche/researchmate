@@ -3,5 +3,8 @@ export * from "./seed";
 export * from "./migrate";
 export * from "./catalog/features";
 export * from "./catalog/rbac";
+export * from "./catalog/workflows";
+export * from "./catalog/documents";
+export * from "./catalog/notifications";
 export * as schema from "./schema";
 export * from "./schema";

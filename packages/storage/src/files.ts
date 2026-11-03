@@ -6,14 +6,16 @@ import {
   fileStorageReservations,
   files,
   fileVersions,
+  organizations,
   researchProjects,
   userProfiles,
 } from "@researchmate/database";
-import { checkUploadQuota, featureEnabled, lockOrganization } from "@researchmate/entitlements";
+import { checkUploadQuota, featureEnabled, getEntitlements, getUsage, limitOf, lockOrganization } from "@researchmate/entitlements";
 import { AppError, isAppError, logger } from "@researchmate/shared";
-import { getOrgAccess, getProjectAccess, recordAudit, requireOrgPermission, requireProjectPermission } from "@researchmate/tenancy";
+import { getOrgAccess, getProjectAccess, notify, recordAudit, requireOrgPermission, requireProjectPermission } from "@researchmate/tenancy";
 import { and, desc, eq, inArray, isNotNull, isNull, lt, or, sql } from "drizzle-orm";
 import { detectContentType, sanitizeFilename, UnsupportedFileTypeError } from "./content-type";
+import type { MalwareScanner } from "./clamav";
 import { type StorageDriver, UploadTooLargeError } from "./driver";
 
 const RESERVATION_TTL_MS = 30 * 60 * 1000;
@@ -23,6 +25,10 @@ export interface FileServiceDeps {
   driver: StorageDriver;
   /** Platform-wide ceiling (MAX_UPLOAD_SIZE_MB), applied on top of plan limits. */
   maxUploadBytes: number;
+  /** Called after a file version is committed (e.g. to queue text extraction). Errors are logged, never fatal. */
+  afterStore?: (file: { id: string; version: number; mimeType: string; aiProcessingAllowed: boolean }) => Promise<unknown>;
+  /** Optional malware scanner (ClamAV). Uploads are refused when it reports a signature or can't be reached. */
+  scanner?: MalwareScanner;
 }
 
 export interface UploadInput {
@@ -108,6 +114,19 @@ export class FileService {
     try {
       if (put.sizeBytes !== declaredSize) throw new AppError("VALIDATION", "The upload was incomplete. Please try again.");
       const mimeType = await detectContentType(filename, put.head);
+      if (this.deps.scanner) {
+        let found: string | null;
+        try {
+          found = await this.deps.scanner.scan((await this.deps.driver.get(key)) as AsyncIterable<Uint8Array>);
+        } catch (err) {
+          logger.error("upload.scan_unavailable", { error: String(err) });
+          throw new AppError("UNAVAILABLE", "Uploads are paused because the malware scanner isn't responding. Please try again shortly.");
+        }
+        if (found) {
+          logger.warn("upload.malware_detected", { organizationId, signature: found });
+          throw new AppError("VALIDATION", "This file was flagged by the malware scanner and was not saved.");
+        }
+      }
       return { key, mimeType, sizeBytes: put.sizeBytes, checksumSha256: put.checksumSha256 };
     } catch (err) {
       await this.deps.driver.delete(key).catch(() => {});
@@ -175,6 +194,8 @@ export class FileService {
         });
         return f!;
       });
+      await this.notifyStored({ id: file.id, version: 1, mimeType: file.mimeType, aiProcessingAllowed: file.aiProcessingAllowed });
+      await this.storageNotice(input.organizationId);
       return file;
     } catch (err) {
       await this.release(reservationId);
@@ -195,7 +216,7 @@ export class FileService {
     try {
       stored = await this.store(file.organizationId, filename, input.declaredSize, input.body);
       const s = stored;
-      return await this.db.transaction(async (tx) => {
+      const result = await this.db.transaction(async (tx) => {
         const [locked] = await tx.select().from(files).where(and(eq(files.id, file.id), isNull(files.deletedAt))).for("update");
         if (!locked) throw new AppError("NOT_FOUND", "File not found.");
         const version = locked.currentVersion + 1;
@@ -230,10 +251,44 @@ export class FileService {
         });
         return updated!;
       });
+      await this.notifyStored({ id: result.id, version: result.currentVersion, mimeType: result.mimeType, aiProcessingAllowed: result.aiProcessingAllowed });
+      await this.storageNotice(result.organizationId);
+      return result;
     } catch (err) {
       await this.release(reservationId);
       if (stored) await this.deps.driver.delete(stored.key).catch(() => {});
       throw err;
+    }
+  }
+
+  /** Tells the organization owner when storage passes 80% or is full (once per level and month). */
+  private async storageNotice(organizationId: string) {
+    try {
+      const [ent, usage, [org]] = await Promise.all([getEntitlements(this.db, organizationId), getUsage(this.db, organizationId), this.db.select({ owner: organizations.ownerUserId }).from(organizations).where(eq(organizations.id, organizationId))]);
+      const max = limitOf(ent, "storage.max_bytes");
+      if (!max || !org) return;
+      const pct = Math.floor((usage.storageBytes / max) * 100);
+      const level = pct >= 100 ? 100 : pct >= 80 ? 80 : null;
+      if (!level) return;
+      await notify(this.db, {
+        userIds: [org.owner],
+        kind: "storage.limit",
+        title: level === 100 ? "Storage is full" : "Storage is 80% full",
+        body: `Your workspace uses ${pct}% of the ${ent.planName} plan's storage. Delete files you no longer need or upgrade to keep uploading.`,
+        link: "/app/files",
+        organizationId,
+        dedupeKey: `storage:${organizationId}:${max}:${level}:${new Date().toISOString().slice(0, 7)}`,
+      });
+    } catch (err) {
+      logger.warn("storage.notice_failed", { error: String(err) });
+    }
+  }
+
+  private async notifyStored(f: { id: string; version: number; mimeType: string; aiProcessingAllowed: boolean }) {
+    try {
+      await this.deps.afterStore?.(f);
+    } catch (err) {
+      logger.error("file.after_store_failed", { fileId: f.id, error: String(err) });
     }
   }
 
@@ -393,4 +448,53 @@ export async function purgeDeletedFiles(db: DbOrTx, driver: StorageDriver, reten
     purged++;
   }
   return purged;
+}
+
+/**
+ * Purges organizations whose deletion grace period has ended (§29 retention):
+ * stored objects (file versions, document exports) are removed, invoices,
+ * payments and the credit ledger are copied to retained_financial_records,
+ * and the organization row is deleted, cascading its projects, files,
+ * documents, notes, credentials and memberships. Restartable: an organization
+ * whose purge was interrupted is picked up again.
+ */
+export async function purgeDeletedOrganizations(db: Database, driver: StorageDriver, now = new Date()): Promise<{ organizations: number; objects: number }> {
+  const due = await db
+    .select({ id: organizations.id, name: organizations.name, deletedAt: organizations.deletedAt })
+    .from(organizations)
+    .where(and(isNotNull(organizations.deletedAt), lt(organizations.purgeAfter, now)))
+    .limit(10);
+  let objects = 0;
+  for (const org of due) {
+    // Mark first (committed), so append-only guards allow deleting this organization's rows.
+    await db.update(organizations).set({ purgeStartedAt: sql`coalesce(${organizations.purgeStartedAt}, now())` }).where(eq(organizations.id, org.id));
+    const keys = (await db.execute(sql`
+      select fv.storage_key as key from file_versions fv join files f on f.id = fv.file_id where f.organization_id = ${org.id} and fv.purged_at is null
+      union all
+      select x.storage_key from document_exports x join documents d on d.id = x.document_id join research_projects p on p.id = d.project_id where p.organization_id = ${org.id} and x.storage_key is not null`)) as unknown as { key: string }[];
+    for (const { key } of keys) {
+      try {
+        await driver.delete(key);
+        objects++;
+      } catch (err) {
+        logger.warn("purge.object_failed", { organizationId: org.id, error: String(err) });
+      }
+    }
+    await db.transaction(async (tx) => {
+      await tx.execute(sql`
+        insert into retained_financial_records (organization_id, organization_name, deleted_at, invoices, payments, ledger)
+        select ${org.id}::uuid, ${org.name}, ${org.deletedAt ? org.deletedAt.toISOString() : null}::timestamptz,
+          coalesce((select jsonb_agg(to_jsonb(i) order by i.issued_at) from invoices i where i.organization_id = ${org.id}), '[]'::jsonb),
+          coalesce((select jsonb_agg(to_jsonb(p) - 'details' order by p.created_at) from payments p where p.organization_id = ${org.id}), '[]'::jsonb),
+          coalesce((select jsonb_agg(to_jsonb(l) order by l.created_at) from credit_ledger_entries l where l.organization_id = ${org.id}), '[]'::jsonb)`);
+      // Rows that would otherwise be nulled (an UPDATE the append-only guard refuses) go first.
+      await tx.execute(sql`delete from mcp_tool_calls where organization_id = ${org.id}`);
+      await tx.execute(sql`delete from research_projects where organization_id = ${org.id}`);
+      await tx.execute(sql`delete from files where organization_id = ${org.id}`);
+      await tx.execute(sql`delete from audit_logs where organization_id = ${org.id}`);
+      await tx.execute(sql`delete from organizations where id = ${org.id}`);
+    });
+    logger.info("organization.purged", { organizationId: org.id, objects: keys.length });
+  }
+  return { organizations: due.length, objects };
 }

@@ -7,17 +7,29 @@
     "dev": "tsx watch --env-file-if-exists=../../.env src/index.ts",
     "start": "tsx src/index.ts",
     "typecheck": "tsc -p tsconfig.json",
-    "admin:create": "tsx --env-file-if-exists=../../.env src/scripts/create-admin.ts"
+    "admin:create": "tsx --env-file-if-exists=../../.env src/scripts/create-admin.ts",
+    "demo:seed": "tsx --env-file-if-exists=../../.env src/scripts/seed-demo.ts"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "1.32.1",
+    "@researchmate/ai": "workspace:*",
     "@researchmate/auth": "workspace:*",
+    "@researchmate/billing": "workspace:*",
+    "@researchmate/citations": "workspace:*",
+    "@researchmate/collaboration": "workspace:*",
     "@researchmate/database": "workspace:*",
+    "@researchmate/documents": "workspace:*",
+    "@researchmate/finance": "workspace:*",
+    "@researchmate/integrations": "workspace:*",
+    "@researchmate/literature": "workspace:*",
+    "@researchmate/planning": "workspace:*",
+    "@researchmate/research": "workspace:*",
     "@researchmate/shared": "workspace:*",
     "@researchmate/storage": "workspace:*",
     "@researchmate/tenancy": "workspace:*",
     "bullmq": "5.81.5",
     "drizzle-orm": "0.45.4",
-    "nodemailer": "7.0.13",
+    "nodemailer": "10.1.7",
     "tsx": "4.23.15"
   },
   "devDependencies": {

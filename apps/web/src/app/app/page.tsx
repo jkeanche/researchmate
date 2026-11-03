@@ -5,7 +5,9 @@ import { eq } from "drizzle-orm";
 import Link from "next/link";
 import { EmptyState, Meter, PageHeader, ProgressRule, Section, StatusTag } from "@/components/ui";
 import { daysUntil, formatDate } from "@/lib/format";
-import { authService, db, fileService, projectService } from "@/server/services";
+import { ActionForm } from "@/components/action-form";
+import { collaborationAction } from "@/server/actions/collaboration";
+import { authService, collaborationService, db, fileService, projectService } from "@/server/services";
 import { requireWorkspace } from "@/server/session";
 
 export const metadata = { title: "Dashboard" };
@@ -21,6 +23,8 @@ export default async function Dashboard() {
     getLimitStatus(db(), org.organizationId),
     authService().getTwoFactorStatus(userId),
   ]);
+  const collab = await collaborationService();
+  const [invites, inbox] = await Promise.all([collab.pendingForUser(userId), collab.inbox(userId)]);
 
   const active = projects.filter((p) => p.status !== "archived");
   const lim = Object.fromEntries(limits.limits.map((l) => [l.key, l]));
@@ -48,6 +52,39 @@ export default async function Dashboard() {
         <p role="status" className="mb-8 rounded-md border border-amber/30 bg-amber-wash px-4 py-3 text-sm text-amber">
           This organization is above one of its plan limits. Everything stays readable and downloadable, but you can't add more until you're back within the limit or upgrade.
         </p>
+      )}
+
+      {invites.map((i) => (
+        <div key={i.id} role="status" className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-md border border-green/30 bg-green-wash px-4 py-3 text-sm">
+          <span>
+            {i.invitedBy ?? "Someone"} invited you to {i.role === "project_supervisor" ? "supervise" : "join"} <strong>{i.projectTitle ?? i.organizationName}</strong> in {i.organizationName}.
+          </span>
+          <span className="flex gap-2">
+            <ActionForm action={collaborationAction} submitLabel="Accept" className="flex">
+              <input type="hidden" name="intent" value="accept_invitation" />
+              <input type="hidden" name="invitationId" value={i.id} />
+            </ActionForm>
+            <ActionForm action={collaborationAction} submitLabel="Decline" variant="quiet" className="flex">
+              <input type="hidden" name="intent" value="decline_invitation" />
+              <input type="hidden" name="invitationId" value={i.id} />
+            </ActionForm>
+          </span>
+        </div>
+      ))}
+
+      {inbox.length > 0 && (
+        <Section title={`Waiting for your review (${inbox.length})`}>
+          <ul className="ruled mb-2">
+            {inbox.map((r) => (
+              <li key={r.id} className="flex flex-wrap items-center justify-between gap-2 py-2.5 text-sm">
+                <span>
+                  <Link href={`/app/projects/${r.project_id}/reviews/${r.id}`} className="font-semibold">{r.title}</Link>
+                  <span className="text-graphite"> · {r.project_title} · round {r.round} · submitted {formatDate(r.created_at)}{r.due_date ? ` · wanted by ${formatDate(r.due_date)}` : ""}</span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </Section>
       )}
 
       <div className="grid gap-x-12 lg:grid-cols-[1fr_17rem]">

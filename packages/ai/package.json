@@ -1,0 +1,27 @@
+{
+  "name": "@researchmate/ai",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@mastra/core": "1.76.0",
+    "@researchmate/billing": "workspace:*",
+    "@researchmate/collaboration": "workspace:*",
+    "@researchmate/database": "workspace:*",
+    "@researchmate/entitlements": "workspace:*",
+    "@researchmate/integrations": "workspace:*",
+    "@researchmate/literature": "workspace:*",
+    "@researchmate/planning": "workspace:*",
+    "@researchmate/research": "workspace:*",
+    "@researchmate/shared": "workspace:*",
+    "@researchmate/tenancy": "workspace:*",
+    "drizzle-orm": "0.45.4",
+    "zod": "3.25.76"
+  }
+}

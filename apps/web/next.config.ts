@@ -31,18 +31,29 @@ const config: NextConfig = {
   // Monorepo: trace workspace packages from the repository root.
   outputFileTracingRoot: new URL("../..", import.meta.url).pathname,
   // Local storage lives outside the build; never bundle uploaded research files.
+  // Citation styles and locales are read from disk at runtime.
+  outputFileTracingIncludes: { "*": ["../../packages/citations/csl/**"] },
   outputFileTracingExcludes: { "*": [".data/**", "**/.data/**", "tests/**"] },
   poweredByHeader: false,
   transpilePackages: [
+    "@researchmate/ai",
     "@researchmate/auth",
+    "@researchmate/citations",
+    "@researchmate/collaboration",
     "@researchmate/database",
+    "@researchmate/documents",
     "@researchmate/entitlements",
+    "@researchmate/finance",
+    "@researchmate/integrations",
+    "@researchmate/literature",
+    "@researchmate/planning",
     "@researchmate/research",
     "@researchmate/shared",
     "@researchmate/storage",
     "@researchmate/tenancy",
+    "@researchmate/toolkit",
   ],
-  serverExternalPackages: ["@node-rs/argon2", "postgres", "ioredis", "bullmq"],
+  serverExternalPackages: ["@modelcontextprotocol/sdk", "docx", "citeproc", "pdfjs-dist", "mammoth", "@mastra/core", "pdfkit", "exceljs", "pptxgenjs", "@node-rs/argon2", "postgres", "ioredis", "bullmq"],
   experimental: {
     serverActions: { bodySizeLimit: "1mb" },
   },

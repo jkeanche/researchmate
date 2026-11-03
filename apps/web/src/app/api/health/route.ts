@@ -2,6 +2,7 @@ import { getRedis } from "@researchmate/auth";
 import { getStorageDriver } from "@researchmate/storage";
 import { sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
+import { workerHeartbeatAge } from "@/server/metrics";
 import { db } from "@/server/services";
 
 export const runtime = "nodejs";
@@ -24,5 +25,7 @@ export async function GET() {
     check(async () => (await getStorageDriver()).healthCheck()),
   ]);
   const ok = database === "ok" && redis === "ok" && storage === "ok";
-  return NextResponse.json({ status: ok ? "ok" : "degraded", checks: { database, redis, storage } }, { status: ok ? 200 : 503, headers: { "Cache-Control": "no-store" } });
+  // The worker is reported but doesn't fail the web container's health check (it restarts independently).
+  const worker = (await workerHeartbeatAge()) === null ? "missing" : "ok";
+  return NextResponse.json({ status: ok ? (worker === "ok" ? "ok" : "degraded") : "degraded", checks: { database, redis, storage, worker } }, { status: ok ? 200 : 503, headers: { "Cache-Control": "no-store" } });
 }

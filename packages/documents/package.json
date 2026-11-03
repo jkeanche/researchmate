@@ -1,0 +1,21 @@
+{
+  "name": "@researchmate/documents",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": { ".": "./src/index.ts" },
+  "scripts": { "typecheck": "tsc -p tsconfig.json" },
+  "dependencies": {
+    "@researchmate/citations": "workspace:*",
+    "@researchmate/database": "workspace:*",
+    "@researchmate/entitlements": "workspace:*",
+    "@researchmate/research": "workspace:*",
+    "@researchmate/shared": "workspace:*",
+    "@researchmate/storage": "workspace:*",
+    "@researchmate/tenancy": "workspace:*",
+    "docx": "9.10.0",
+    "drizzle-orm": "0.45.4",
+    "pdfjs-dist": "6.4.299",
+    "zod": "3.25.76"
+  }
+}

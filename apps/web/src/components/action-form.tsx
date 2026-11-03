@@ -78,17 +78,19 @@ export function Field({
   defaultValue,
   required,
   autoComplete,
+  id: idProp,
   ...rest
 }: {
   label: string;
   name: string;
+  id?: string;
   type?: string;
   hint?: string;
   defaultValue?: string | number | null;
   required?: boolean;
   autoComplete?: string;
 } & Omit<React.InputHTMLAttributes<HTMLInputElement>, "defaultValue">) {
-  const id = `f-${name}`;
+  const id = idProp ?? `f-${name}`;
   return (
     <div className="field">
       <label htmlFor={id}>{label}</label>

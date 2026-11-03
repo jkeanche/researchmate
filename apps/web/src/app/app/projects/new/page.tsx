@@ -1,4 +1,5 @@
 import { getLimitStatus } from "@researchmate/entitlements";
+import { listWorkflowTemplates } from "@researchmate/research";
 import Link from "next/link";
 import { ActionForm } from "@/components/action-form";
 import { ProjectFields } from "@/components/project-fields";
@@ -11,7 +12,7 @@ export const metadata = { title: "New project" };
 
 export default async function NewProjectPage() {
   const { org } = await requireWorkspace();
-  const status = await getLimitStatus(db(), org.organizationId);
+  const [status, templates] = await Promise.all([getLimitStatus(db(), org.organizationId), listWorkflowTemplates(db(), org.organizationId)]);
   const projects = status.limits.find((l) => l.key === "projects.max")!;
   const atLimit = projects.limit !== null && projects.used >= projects.limit;
 
@@ -38,6 +39,17 @@ export default async function NewProjectPage() {
         <div className="max-w-2xl">
           <ActionForm action={createProjectAction} submitLabel="Create project" pendingLabel="Creating…" className="grid gap-6">
             <ProjectFields />
+            <div className="field">
+              <label htmlFor="f-workflowTemplateKey">Workflow</label>
+              <select id="f-workflowTemplateKey" name="workflowTemplateKey" className="input" defaultValue="auto">
+                <option value="auto">Suggested for the research type</option>
+                {templates.map((t) => (
+                  <option key={t.id} value={t.key}>{t.name}</option>
+                ))}
+                <option value="">No workflow (plan freely)</option>
+              </select>
+              <span className="hint">The stages are copied into the project; you can change them at any time.</span>
+            </div>
           </ActionForm>
         </div>
       )}

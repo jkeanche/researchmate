@@ -1,0 +1,26 @@
+{
+  "name": "@researchmate/literature",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@researchmate/billing": "workspace:*",
+    "@researchmate/citations": "workspace:*",
+    "@researchmate/database": "workspace:*",
+    "@researchmate/entitlements": "workspace:*",
+    "@researchmate/research": "workspace:*",
+    "@researchmate/shared": "workspace:*",
+    "@researchmate/storage": "workspace:*",
+    "@researchmate/tenancy": "workspace:*",
+    "drizzle-orm": "0.45.4",
+    "mammoth": "1.13.0",
+    "pdfjs-dist": "6.4.299",
+    "zod": "3.25.76"
+  }
+}

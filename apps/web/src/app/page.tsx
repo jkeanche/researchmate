@@ -113,7 +113,8 @@ export default async function Home() {
                   <PlanRow label="Storage" plans={planList} render={(v) => (v["storage.max_bytes"] === null ? "Unlimited" : formatBytes(Number(v["storage.max_bytes"])))} />
                   <PlanRow label="Largest file" plans={planList} render={(v) => formatBytes(Number(v["files.max_size_bytes"]))} />
                   <PlanRow label="AI assistance" plans={planList} render={(v) => tierLabel(v["ai.agents"])} />
-                  <PlanRow label="Project planning" plans={planList} render={(v) => (v["planning.gantt"] === "overview" ? "Overview" : tierLabel(v["planning.gantt"]))} />
+                  <PlanRow label="Project planning" plans={planList} render={(v) => (v["planning.gantt"] === "overview" ? "Task list and timeline" : v["planning.gantt"] === "full" ? "Gantt, dependencies, baselines" : tierLabel(v["planning.gantt"]))} />
+                  <PlanRow label="Tasks per project" plans={planList} render={(v) => count(v["planning.tasks.max"], "task")} />
                   <PlanRow label="Budget tracking" plans={planList} render={(v) => (v["finance.budget"] ? "Included" : "—")} />
                   <PlanRow label="Supervisor collaboration" plans={planList} render={(v) => tierLabel(v["collaboration.supervisor"])} />
                   <PlanRow label="Team members" plans={planList} render={(v) => count(v["members.max"], "member")} />

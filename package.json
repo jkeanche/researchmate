@@ -22,26 +22,49 @@
     "test:e2e": "playwright test"
   },
   "devDependencies": {
+    "@aws-sdk/client-s3": "3.1149.0",
+    "@modelcontextprotocol/sdk": "1.32.1",
     "@playwright/test": "1.63.0",
+    "@researchmate/ai": "workspace:*",
     "@researchmate/auth": "workspace:*",
+    "@researchmate/billing": "workspace:*",
+    "@researchmate/citations": "workspace:*",
+    "@researchmate/collaboration": "workspace:*",
     "@researchmate/database": "workspace:*",
+    "@researchmate/documents": "workspace:*",
     "@researchmate/entitlements": "workspace:*",
+    "@researchmate/finance": "workspace:*",
+    "@researchmate/integrations": "workspace:*",
+    "@researchmate/literature": "workspace:*",
+    "@researchmate/planning": "workspace:*",
     "@researchmate/research": "workspace:*",
     "@researchmate/shared": "workspace:*",
     "@researchmate/storage": "workspace:*",
     "@researchmate/tenancy": "workspace:*",
+    "@researchmate/toolkit": "workspace:*",
     "@types/node": "22.20.5",
+    "@types/pdfkit": "0.17.6",
     "drizzle-orm": "0.45.4",
+    "exceljs": "4.4.0",
+    "ioredis": "5.11.1",
+    "mammoth": "1.13.0",
+    "pdfkit": "0.20.2",
     "postgres": "3.4.9",
     "tsx": "4.23.15",
     "typescript": "5.9.3",
-    "vitest": "3.2.7"
+    "vitest": "3.2.7",
+    "zod": "3.25.76"
   },
   "pnpm": {
     "onlyBuiltDependencies": [
       "esbuild",
       "sharp",
       "msgpackr-extract"
-    ]
+    ],
+    "overrides": {
+      "katex@<0.18.2": "0.18.11",
+      "uuid@<11.1.1": "11.1.1",
+      "image-size@<2.0.3": "2.0.4"
+    }
   }
 }

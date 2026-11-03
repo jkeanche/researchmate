@@ -1,0 +1,60 @@
+# Alert rules for ResearchMate. Route them with Alertmanager (not included) or
+# review them at http://127.0.0.1:9090/alerts through an SSH tunnel.
+groups:
+  - name: researchmate
+    rules:
+      - alert: ResearchMateDown
+        expr: up{job="researchmate"} == 0
+        for: 2m
+        labels: { severity: critical }
+        annotations: { summary: "The web app is not answering /api/metrics." }
+
+      - alert: DependencyDown
+        expr: researchmate_dependency_up == 0
+        for: 2m
+        labels: { severity: critical }
+        annotations: { summary: "{{ $labels.dependency }} is failing its health check." }
+
+      - alert: WorkerMissing
+        expr: researchmate_worker_up == 0
+        for: 3m
+        labels: { severity: critical }
+        annotations: { summary: "No worker heartbeat: emails, exports, extraction and AI runs are not being processed." }
+
+      - alert: QueueBacklog
+        expr: researchmate_queue_jobs{state="waiting"} > 200
+        for: 15m
+        labels: { severity: warning }
+        annotations: { summary: "{{ $labels.queue }} queue has {{ $value }} jobs waiting." }
+
+      - alert: FailedJobsGrowing
+        expr: increase(researchmate_queue_jobs{state="failed"}[1h]) > 20
+        labels: { severity: warning }
+        annotations: { summary: "More than 20 {{ $labels.queue }} jobs failed in the last hour." }
+
+      - alert: NotificationEmailStuck
+        expr: researchmate_notification_emails_pending > 500
+        for: 15m
+        labels: { severity: warning }
+        annotations: { summary: "Notification emails are not being delivered (check SMTP and the scheduler)." }
+
+      - alert: DocumentExportStuck
+        expr: researchmate_document_export_oldest_pending_seconds > 1800
+        labels: { severity: warning }
+        annotations: { summary: "A document export has been waiting more than 30 minutes." }
+
+      - alert: PaymentFailuresSpike
+        expr: researchmate_payments_failed_24h > 10
+        labels: { severity: warning }
+        annotations: { summary: "{{ $value }} payments failed in the last 24 hours." }
+
+      - alert: LoginFailureSpike
+        expr: researchmate_login_failures_1h > 200
+        labels: { severity: warning }
+        annotations: { summary: "{{ $value }} failed sign-ins in the last hour — possible credential stuffing." }
+
+      - alert: WebMemoryHigh
+        expr: process_resident_memory_bytes > 1.5e9
+        for: 10m
+        labels: { severity: warning }
+        annotations: { summary: "The web process uses more than 1.5 GB of memory." }

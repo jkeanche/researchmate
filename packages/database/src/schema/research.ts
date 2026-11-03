@@ -51,6 +51,11 @@ export const researchProjects = pgTable(
     expectedCompletionDate: date("expected_completion_date", { mode: "string" }),
     status: text("status").notNull().default("draft"),
     progressPercent: smallint("progress_percent").notNull().default(0),
+    /** manual = set by the user; tasks = derived from task progress (duration-weighted). */
+    progressSource: text("progress_source").notNull().default("tasks"),
+    /** Workflow template applied to the project (stages are copied into project_stages). */
+    workflowTemplateKey: text("workflow_template_key"),
+    workflowTemplateVersion: integer("workflow_template_version"),
     createdAt: ts("created_at").notNull().defaultNow(),
     updatedAt: ts("updated_at").notNull().defaultNow(),
     archivedAt: ts("archived_at"),
@@ -65,6 +70,7 @@ export const researchProjects = pgTable(
       "research_projects_dates_check",
       sql`${t.expectedCompletionDate} is null or ${t.startDate} is null or ${t.expectedCompletionDate} >= ${t.startDate}`,
     ),
+    check("research_projects_progress_source_check", sql`${t.progressSource} in ('manual', 'tasks')`),
     check("research_projects_targets_check", sql`coalesce(${t.targetWordCount}, 0) >= 0 and coalesce(${t.targetPageCount}, 0) >= 0`),
   ],
 );

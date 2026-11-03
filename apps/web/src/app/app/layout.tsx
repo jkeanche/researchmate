@@ -5,6 +5,7 @@ import { Wordmark } from "@/components/brand";
 import { OrgSwitcher } from "@/components/client-bits";
 import { logoutAction } from "@/server/actions/auth";
 import { switchOrganizationAction } from "@/server/actions/workspace";
+import { unreadCount } from "@researchmate/tenancy";
 import { db } from "@/server/services";
 import { requireWorkspace } from "@/server/session";
 
@@ -13,15 +14,20 @@ export const dynamic = "force-dynamic";
 const NAV = [
   { href: "/app", label: "Dashboard" },
   { href: "/app/projects", label: "Projects" },
+  { href: "/app/search", label: "Search" },
   { href: "/app/files", label: "Files" },
+  { href: "/app/notifications", label: "Notifications" },
   { href: "/app/settings/organization", label: "Organization" },
   { href: "/app/settings/profile", label: "Profile" },
   { href: "/app/settings/security", label: "Security" },
+  { href: "/app/settings/ai", label: "AI keys" },
+  { href: "/app/settings/billing", label: "Billing" },
+  { href: "/app/settings/integrations", label: "Integrations" },
 ];
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const { session, organizations, org } = await requireWorkspace();
-  const [profile] = await db().select({ displayName: userProfiles.displayName }).from(userProfiles).where(eq(userProfiles.userId, session.user.id));
+  const [[profile], unread] = await Promise.all([db().select({ displayName: userProfiles.displayName }).from(userProfiles).where(eq(userProfiles.userId, session.user.id)), unreadCount(db(), session.user.id)]);
 
   return (
     <div className="min-h-screen lg:grid lg:grid-cols-[15.5rem_1fr]">
@@ -36,9 +42,14 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           <OrgSwitcher current={org.organizationId} organizations={organizations} action={switchOrganizationAction} />
         </div>
         <nav aria-label="Main" className="mt-4 flex gap-1 overflow-x-auto pb-1 lg:mt-6 lg:grid lg:gap-0.5 lg:overflow-visible">
-          {NAV.map((n) => (
-            <Link key={n.href} href={n.href} className="rounded-md px-2.5 py-1.5 text-[0.9375rem] whitespace-nowrap no-underline hover:bg-rule-soft">
+          {[...NAV, ...(session.user.isPlatformAdmin ? [{ href: "/app/admin/billing", label: "Billing admin" }] : [])].map((n) => (
+            <Link key={n.href} href={n.href} className="flex items-center justify-between gap-2 rounded-md px-2.5 py-1.5 text-[0.9375rem] whitespace-nowrap no-underline hover:bg-rule-soft">
               {n.label}
+              {n.href === "/app/notifications" && unread > 0 && (
+                <span className="rounded-full bg-margin px-1.5 text-xs font-semibold text-paper tabular-nums" aria-label={`${unread} unread`}>
+                  {unread > 99 ? "99+" : unread}
+                </span>
+              )}
             </Link>
           ))}
         </nav>

@@ -47,8 +47,10 @@ h3 {
   border-radius: 3px;
 }
 
-a {
-  color: inherit;
+@layer base {
+  a {
+    color: inherit;
+  }
 }
 
 /* The notebook margin: a single red rule down the workspace. */
@@ -70,6 +72,7 @@ a {
   border-top: 1px solid var(--color-rule-soft);
 }
 
+@layer components {
 /* Form controls */
 .field {
   display: grid;
@@ -143,6 +146,7 @@ textarea.input {
 .btn-danger:hover {
   background: var(--color-margin-wash);
 }
+}
 
 @media (prefers-reduced-motion: reduce) {
   *,
@@ -150,5 +154,63 @@ textarea.input {
   *::after {
     animation: none !important;
     transition: none !important;
+  }
+}
+
+/* Print: drop navigation and controls, keep content full width (Gantt prints landscape). */
+@media print {
+  @page {
+    size: A4 landscape;
+    margin: 12mm;
+  }
+  html,
+  body {
+    background: #fff;
+  }
+  aside,
+  .no-print {
+    display: none !important;
+  }
+  .margin-rule::before {
+    display: none;
+  }
+  main {
+    padding: 0 !important;
+  }
+  main > div {
+    max-width: none !important;
+  }
+  .print-expand {
+    overflow: visible !important;
+    max-height: none !important;
+  }
+}
+
+.sr-only-focusable:not(:focus) {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+}
+
+.gantt-bar:focus-visible > rect:first-of-type,
+.gantt-bar:focus-visible > path:first-of-type {
+  stroke: var(--color-ink);
+  stroke-width: 2.5;
+}
+.print-only {
+  display: none;
+}
+@media print {
+  .gantt-screen {
+    display: none !important;
+  }
+  .print-only {
+    display: block;
+  }
+  .print-only svg {
+    width: 100%;
+    height: auto;
   }
 }

@@ -1,16 +1,24 @@
 import {
   authTokens,
+  connectedAccounts,
   type Database,
   type DbOrTx,
+  notificationPreferences,
+  notifications,
+  organizationMembers,
+  organizations,
+  projectMembers,
   securityEvents,
+  sessions,
+  userApiCredentials,
   twoFactorRecoveryCodes,
   twoFactorSettings,
   userProfiles,
   users,
 } from "@researchmate/database";
 import { AppError, decryptSecret, encryptSecret, hmacHex, logger, randomToken } from "@researchmate/shared";
-import { createOrganization } from "@researchmate/tenancy";
-import { and, eq, gt, isNull, sql } from "drizzle-orm";
+import { createOrganization, notify, scheduleOrganizationDeletion } from "@researchmate/tenancy";
+import { and, eq, gt, isNull, ne, sql } from "drizzle-orm";
 import QRCode from "qrcode";
 import { emailTemplates, type Mailer } from "./mail";
 import { hashPassword, validatePassword, verifyDummyPassword, verifyPassword } from "./password";
@@ -81,6 +89,7 @@ export class AuthService {
   // -------------------------------------------------------------------------
 
   private async event(db: DbOrTx, type: string, userId: string | null, ctx?: SessionContext, metadata: Record<string, unknown> = {}) {
+    if (userId) await this.securityNotice(db, type, userId, ctx);
     await db.insert(securityEvents).values({
       userId,
       type,
@@ -88,6 +97,37 @@ export class AuthService {
       userAgent: ctx?.userAgent?.slice(0, 500) ?? null,
       metadata,
     });
+  }
+
+
+  /**
+   * Security notices (§30): account changes, and sign-ins from a device and
+   * network not seen in the last 90 days. Always emailed (locked kind).
+   */
+  private async securityNotice(db: DbOrTx, type: string, userId: string, ctx?: SessionContext) {
+    const where = ctx?.ipAddress ? ` from ${normaliseIp(ctx.ipAddress) ?? "an unknown address"}` : "";
+    const notices: Record<string, [string, string]> = {
+      "password.changed": ["Your password was changed", `Your ResearchMate password was changed${where}. If this wasn't you, reset your password now and contact your administrator.`],
+      "password.reset_completed": ["Your password was reset", `Your ResearchMate password was reset${where}. All other sessions were signed out. If this wasn't you, reset it again and contact your administrator.`],
+      "two_factor.enabled": ["Two-factor authentication turned on", `Two-factor authentication was turned on for your account${where}.`],
+      "two_factor.disabled": ["Two-factor authentication turned off", `Two-factor authentication was turned off for your account${where}. If this wasn't you, change your password and turn it back on.`],
+      "two_factor.recovery_codes_regenerated": ["New recovery codes generated", `New two-factor recovery codes were generated${where}; the old ones no longer work.`],
+      "two_factor.recovery_code_used": ["A recovery code was used to sign in", `A two-factor recovery code was used to sign in${where}. Each code works once. If this wasn't you, change your password now.`],
+      "session.revoked_all_others": ["Other sessions signed out", "All your other sessions were signed out."],
+    };
+    let n = notices[type];
+    if (type === "login.succeeded" && ctx) {
+      const ip = normaliseIp(ctx.ipAddress);
+      const ua = ctx.userAgent?.slice(0, 500) ?? null;
+      const [seen] = await db
+        .select({ n: sql<number>`count(*)::int`, same: sql<number>`count(*) filter (where ${securityEvents.ipAddress} is not distinct from ${ip}::inet and ${securityEvents.userAgent} is not distinct from ${ua})::int` })
+        .from(securityEvents)
+        .where(and(eq(securityEvents.userId, userId), eq(securityEvents.type, "login.succeeded"), gt(securityEvents.createdAt, sql`now() - interval '90 days'`)));
+      // The first sign-in after registration isn't news; a new device/network later is.
+      if (seen && seen.n > 0 && seen.same === 0) n = ["New sign-in to your account", `Your account was signed in to${where} using ${ua ? ua.slice(0, 120) : "an unknown browser"}. If this wasn't you, change your password and sign out other sessions under Settings → Security.`];
+    }
+    if (!n) return;
+    await notify(db, { userIds: [userId], kind: "security.alert", title: n[0], body: n[1], link: "/app/settings/security" });
   }
 
   private async issueToken(db: DbOrTx, userId: string, purpose: TokenPurpose): Promise<string> {
@@ -365,7 +405,44 @@ export class AuthService {
       await revokeAllSessions(tx, input.userId, input.sessionId);
       await this.event(tx, "password.changed", input.userId, input.ctx);
     });
-    await this.send(user.email, emailTemplates.securityNotice("Password changed", "The password for your ResearchMate account was changed and your other sessions were signed out."));
+  }
+
+  /**
+   * Deletes the account (§29): after reauthentication, workspaces the user
+   * owns alone are scheduled for deletion, memberships end, and credentials,
+   * sessions, 2FA secrets, API keys, Drive tokens and notifications are
+   * removed. The user row is pseudonymised rather than deleted, so audit
+   * trails and append-only records (authorship of approvals, ledgers) stay
+   * intact without identifying the person.
+   */
+  async deleteAccount(input: { userId: string; sessionId: string; password: string; code?: string; ctx?: SessionContext }): Promise<{ scheduledOrganizations: string[] }> {
+    await this.reauthenticate(input);
+    const owned = await this.db.select({ id: organizations.id, name: organizations.name }).from(organizations).where(and(eq(organizations.ownerUserId, input.userId), isNull(organizations.deletedAt)));
+    for (const o of owned) {
+      const [others] = await this.db.select({ n: sql<number>`count(*)::int` }).from(organizationMembers).where(and(eq(organizationMembers.organizationId, o.id), ne(organizationMembers.userId, input.userId)));
+      if (others!.n > 0) throw new AppError("VALIDATION", `“${o.name}” has other members. Remove them or ask an administrator to take it over before deleting your account.`);
+    }
+    const uid = input.userId;
+    await this.db.transaction(async (tx) => {
+      for (const o of owned) await scheduleOrganizationDeletion(tx, uid, o.id, o.name);
+      await this.event(tx, "account.deleted", uid, input.ctx);
+      await tx.delete(projectMembers).where(eq(projectMembers.userId, uid));
+      await tx.delete(organizationMembers).where(and(eq(organizationMembers.userId, uid), sql`${organizationMembers.organizationId} not in (select id from organizations where owner_user_id = ${uid})`));
+      await tx.delete(sessions).where(eq(sessions.userId, uid));
+      await tx.delete(authTokens).where(eq(authTokens.userId, uid));
+      await tx.delete(twoFactorSettings).where(eq(twoFactorSettings.userId, uid));
+      await tx.delete(twoFactorRecoveryCodes).where(eq(twoFactorRecoveryCodes.userId, uid));
+      await tx.delete(userApiCredentials).where(eq(userApiCredentials.userId, uid));
+      await tx.delete(connectedAccounts).where(eq(connectedAccounts.userId, uid));
+      await tx.delete(notifications).where(eq(notifications.userId, uid));
+      await tx.delete(notificationPreferences).where(eq(notificationPreferences.userId, uid));
+      await tx
+        .update(users)
+        .set({ email: `deleted-${uid}@deleted.invalid`, passwordHash: await hashPassword(randomToken()), emailVerifiedAt: null, isPlatformAdmin: false, status: "disabled", updatedAt: new Date() })
+        .where(eq(users.id, uid));
+      await tx.update(userProfiles).set({ displayName: "Deleted user", institution: null, department: null, discipline: null, academicLevel: null, updatedAt: new Date() }).where(eq(userProfiles.userId, uid));
+    });
+    return { scheduledOrganizations: owned.map((o) => o.name) };
   }
 
   /**
@@ -460,8 +537,6 @@ export class AuthService {
       await this.event(tx, "two_factor.enabled", input.userId, input.ctx);
       return recovery;
     });
-    const [user] = await this.db.select({ email: users.email }).from(users).where(eq(users.id, input.userId));
-    if (user) await this.send(user.email, emailTemplates.securityNotice("Two-factor authentication enabled", "Two-factor authentication was turned on for your ResearchMate account."));
     return { recoveryCodes: codes };
   }
 
@@ -474,8 +549,6 @@ export class AuthService {
       await revokeAllSessions(tx, input.userId, input.sessionId);
       await this.event(tx, "two_factor.disabled", input.userId, input.ctx);
     });
-    const [user] = await this.db.select({ email: users.email }).from(users).where(eq(users.id, input.userId));
-    if (user) await this.send(user.email, emailTemplates.securityNotice("Two-factor authentication disabled", "Two-factor authentication was turned off for your ResearchMate account."));
   }
 
   async regenerateRecoveryCodes(input: { userId: string; sessionId: string; password: string; code: string; ctx?: SessionContext }): Promise<string[]> {

@@ -3,7 +3,9 @@
 #   cp .env.example .env   # fill in secrets
 #   docker compose up -d --build
 #   docker compose run --rm migrate            # first deploy and after upgrades
-#   docker compose run --rm worker node --import tsx src/scripts/create-admin.ts
+#   docker compose run --rm researchmate-worker node --import tsx src/scripts/create-admin.ts
+#
+# Optional profiles: --profile clamav (malware scanning), --profile monitoring (Prometheus).
 #
 # Persistent data lives in named volumes (database, Redis, research files,
 # backups). Nothing is stored in container filesystems.
@@ -69,18 +71,76 @@ services:
       - research-files:/var/lib/researchmate
     networks: [internal, edge]
 
-  # Runs background jobs and owns scheduled maintenance (BullMQ job schedulers
-  # are idempotent, so this also covers the "scheduler" role from the spec).
+  # Background jobs: email, text extraction, documents, AI, Drive, integrations
+  # and maintenance. Scale with `docker compose up -d --scale researchmate-worker=2`.
   researchmate-worker:
     <<: *app-env
     image: researchmate-worker:latest
     build: { context: ., dockerfile: infrastructure/docker/worker.Dockerfile }
     restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgres://${POSTGRES_USER:-researchmate}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-researchmate}
+      REDIS_URL: redis://redis:6379/0
+      LOCAL_STORAGE_ROOT: /var/lib/researchmate
+      WORKER_ROLE: jobs
     depends_on:
       postgres: { condition: service_healthy }
       redis: { condition: service_healthy }
     volumes:
       - research-files:/var/lib/researchmate
+    networks: [internal]
+
+  # Registers the maintenance schedules (deadline notices, notification email,
+  # renewals, purges, cleanup). Run exactly one.
+  researchmate-scheduler:
+    <<: *app-env
+    image: researchmate-worker:latest
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgres://${POSTGRES_USER:-researchmate}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-researchmate}
+      REDIS_URL: redis://redis:6379/0
+      LOCAL_STORAGE_ROOT: /var/lib/researchmate
+      WORKER_ROLE: scheduler
+    depends_on:
+      researchmate-worker: { condition: service_started }
+    volumes:
+      - research-files:/var/lib/researchmate
+    networks: [internal]
+
+  # Optional malware scanning: `docker compose --profile clamav up -d`, then set
+  # CLAMAV_HOST=clamav in .env. Signatures update automatically (freshclam).
+  clamav:
+    image: clamav/clamav:1.4
+    restart: unless-stopped
+    profiles: ["clamav"]
+    volumes:
+      - clamav-db:/var/lib/clamav
+    healthcheck:
+      test: ["CMD", "clamdcheck.sh"]
+      interval: 60s
+      timeout: 10s
+      start_period: 300s
+      retries: 3
+    networks: [internal]
+
+  # Optional monitoring: `docker compose --profile monitoring up -d`. Prometheus
+  # scrapes /api/metrics (token from METRICS_TOKEN) and evaluates the alert
+  # rules in infrastructure/monitoring/. It listens on 127.0.0.1:9090 only —
+  # reach it through an SSH tunnel, or connect Alertmanager/Grafana yourself.
+  prometheus:
+    image: prom/prometheus:v3.5.0
+    restart: unless-stopped
+    profiles: ["monitoring"]
+    environment:
+      METRICS_TOKEN: ${METRICS_TOKEN:-}
+    entrypoint: ["/bin/sh", "-c", "printf '%s' \"$$METRICS_TOKEN\" > /tmp/metrics-token && exec /bin/prometheus --config.file=/etc/prometheus/prometheus.yml --storage.tsdb.retention.time=30d --storage.tsdb.path=/prometheus"]
+    volumes:
+      - ./infrastructure/monitoring:/etc/prometheus:ro
+      - prometheus-data:/prometheus
+    ports:
+      - "127.0.0.1:9090:9090"
     networks: [internal]
 
   nginx:
@@ -97,6 +157,8 @@ services:
     networks: [edge]
 
 volumes:
+  clamav-db:
+  prometheus-data:
   postgres-data:
   redis-data:
   research-files:

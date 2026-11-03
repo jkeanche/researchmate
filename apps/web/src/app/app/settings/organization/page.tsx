@@ -7,6 +7,7 @@ import { ActionForm, Field } from "@/components/action-form";
 import { ConfirmAction } from "@/components/client-bits";
 import { Meter, PageHeader, Section } from "@/components/ui";
 import { formatDate } from "@/lib/format";
+import { deleteOrganizationAction } from "@/server/actions/retention";
 import { addMemberAction, changeMemberRoleAction, removeMemberAction } from "@/server/actions/workspace";
 import { db } from "@/server/services";
 import { requireWorkspace } from "@/server/session";
@@ -125,6 +126,17 @@ export default async function OrganizationPage() {
           </div>
         )}
       </Section>
+      {org.roleKey === "org_owner" && (
+        <Section title="Delete this workspace" description={`Everyone loses access immediately. Projects, files, documents and notes are permanently deleted after 30 days; until then you can restore it from Settings → Profile. Invoices and payment records are kept for accounting.`}>
+          <div className="max-w-xl">
+            <ActionForm action={deleteOrganizationAction} submitLabel="Delete workspace" variant="danger">
+              <Field label={`Type the workspace name (${org.organizationName}) to confirm`} name="confirmName" required autoComplete="off" />
+              <Field label="Password" name="password" type="password" autoComplete="current-password" required />
+              <Field label="Authentication or recovery code (if two-factor is on)" name="code" autoComplete="one-time-code" maxLength={16} />
+            </ActionForm>
+          </div>
+        </Section>
+      )}
     </>
   );
 }

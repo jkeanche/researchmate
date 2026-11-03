@@ -10,6 +10,8 @@
     "typecheck": "tsc -p tsconfig.json"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "3.1149.0",
+    "@aws-sdk/lib-storage": "3.1149.0",
     "@researchmate/database": "workspace:*",
     "@researchmate/entitlements": "workspace:*",
     "@researchmate/shared": "workspace:*",

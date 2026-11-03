@@ -13,6 +13,7 @@ export type AppErrorCode =
   | "FEATURE_NOT_ENTITLED"
   | "READ_ONLY"
   | "TWO_FACTOR_REQUIRED"
+  | "UNAVAILABLE"
   | "INTERNAL";
 
 const STATUS: Record<AppErrorCode, number> = {
@@ -26,6 +27,7 @@ const STATUS: Record<AppErrorCode, number> = {
   FEATURE_NOT_ENTITLED: 402,
   READ_ONLY: 423,
   TWO_FACTOR_REQUIRED: 401,
+  UNAVAILABLE: 503,
   INTERNAL: 500,
 };
 

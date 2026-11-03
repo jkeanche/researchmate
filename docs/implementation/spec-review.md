@@ -41,3 +41,78 @@ A review of the ResearchMate AI blueprint before implementation, with the decisi
 - §27 lists `roles`/`permissions` but no join table; implemented as `role_permissions`.
 - §13 suggests `/var/lib/researchmate/backups` on the same disk as the data; backups must be copied off-server (documented in the deployment guide).
 - §26 mentions "reauthentication for disabling"; implemented as password **and** a current TOTP/recovery code.
+
+## Milestone 2 findings
+
+13. **"Gantt planning: Basic overview" on Free (§22) vs "Free is overview-only".** **Decision (M2):** the Free tier can keep a small plan (20 tasks and milestones per project via `planning.tasks.max`) with list, board, calendar and a read-only timeline. Dependencies, drag scheduling, critical path, baselines, proposals, risks, events and time tracking need `planning.gantt = full`.
+
+14. **§27 lists `research_milestones` separately from tasks.** **Decision (M2):** milestones are tasks with `kind = milestone`, so dependencies and the critical path work uniformly.
+
+15. **"Do not let AI silently change approved deadlines" (§8.2) needs a mechanism before AI exists.** **Decision (M2):** locked deadlines (`deadline_locked`), approver-only overrides with a recorded reason, and proposals that never edit existing tasks. A future AI agent writes proposals with `source = 'ai'`; it gets no path to move a locked date.
+
+16. **"Do not overwrite the original baseline" (§8.5).** **Decision (M2):** numbered, append-only baselines; database triggers refuse updates and deletes.
+
+17. **Working days vs calendar days** is unspecified. **Decision (M2):** calendar days for now (stated in every generated proposal). Institution/country calendars are a later enhancement.
+
+18. **Supervisor waiting time (§7)** has no data source. **Decision (M2):** measured from approval-gated workflow stages (time in `awaiting_approval`). Supervisor document review (Phase 12) will add to it.
+
+19. **"Export to PDF" for Gantt (§8.1).** **Decision (M2):** PNG/SVG export in the browser and a print-to-PDF layout. Server-generated PDFs come with the document engine (Phase 11), which needs a LibreOffice/Chromium container anyway.
+
+20. **Self-approval.** A lead researcher working alone holds `project.plan.approve` and can approve their own stages and schedules; otherwise single-person projects could never progress. Organizations that need four-eyes approval can give the lead a researcher role and a supervisor the approval role; an "approver must differ from submitter" rule can be added with supervisor collaboration (Phase 12).
+
+21. **Gantt library (§3).** Evaluated maintained options; none met the four-dependency-type, baseline and server-validated-drag requirements under a permissive licence without paid tiers. Built in-house over SVG (see architecture decisions).
+
+22. **"Never fabricate sources, quotes or evidence" (§10) is stated as a rule for AI.** **Decision (M5):** enforced in code after every AI response. Quotes must occur verbatim in the extracted document, and citation keys must exist in the project library. Failing output is discarded, not repaired.
+
+23. **Verification levels (§10) don't say who may set them.** **Decision (M5):** software sets at most "metadata verified" (a DOI registry match); "full text reviewed" is a person's statement and needs the full text attached.
+
+24. **The literature matrix could overstate what was read.** **Decision (M5):** each row records its basis (metadata, abstract or full text), which can't exceed the content held for that source.
+
+25. **Semantic search over documents.** **Decision (M5):** PostgreSQL full-text search with page numbers now; embeddings later on the same `file_passages` table when pgvector is available.
+
+26. **"Use DOCX as the editable master format" vs a web editor (§18).** **Decision (M6):** the web editor stores structured section markup that maps one-to-one to DOCX; DOCX is generated from it and is the file people edit outside ResearchMate. Round-tripping edited DOCX back into sections is not supported, to avoid silent loss of structure.
+
+27. **"Validate the actual output" (§18).** **Decision (M6):** validation reads the rendered PDF itself (pdf.js): page size and count, margins (text and image bounding boxes), headings in order, contents, captions, drawn images and printed page numbers. Content limits use the same model that produced the DOCX.
+
+28. **Word-count convention** is unspecified. **Decision (M6):** main-text words only; citations, tables, captions, equations, preliminary pages, references and appendices are excluded, and the rule is shown with every count. Abstract and per-section limits are separate.
+
+29. **Unknown citations.** **Decision (M6):** allowed while drafting (highlighted), but they block export. "Every citation must point to a reference record" (§19) holds for every exported file.
+
+30. **Equations.** **Decision (M6):** TeX-like input rendered as text with Unicode symbols and right-aligned numbers. True Word math (OMML) is a later enhancement.
+
+31. **"AI … cannot impersonate a supervisor or automatically approve research" (§21).** **Decision (M7):** decisions are a person's action with the review permission, never the submitter's (database check). The Supervisor Feedback Agent only creates suggestions, which the researcher accepts as revision tasks; it has no path to decisions.
+
+32. **External supervisors.** **Decision (M7):** invited supervisors join the organization as `org_member`, which grants no access beyond the projects they're added to, and count towards the member limit. Invitations are bound to the invited email address.
+
+33. **"Limited" supervisor collaboration on Starter.** **Decision (M7):** one supervisor per project (including pending invitations); full review workflow otherwise. Collaborator invitations follow `collaboration.team`, which is off on Starter.
+
+34. **"Evaluate Stripe, Paddle, Pesapal and Kenyan options" (§25).** **Decision (M8):** Paystack (primary) and Pesapal for Kenya, Stripe for operators in Stripe countries, Paddle not implemented (seller eligibility unconfirmed). See `docs/architecture/payments.md`.
+
+35. **Subscriptions with mobile money.** M-PESA has no recurring pull. **Decision (M8):** plans are prepaid periods with reminders and stacking renewals, instead of card-only auto-renewal.
+
+36. **Currency conversion.** **Decision (M8):** no automatic exchange rates for prices; administrators set prices per currency. AI costs and credit are in USD (providers bill in USD).
+
+37. **"checkAiBudget(userId, estimatedCost)" (§22).** **Decision (M8):** budgets are per organization (credit, allowance, monthly and per-run caps), checked at queue time and again with the real prompt before the provider call, with amounts held by jobs in flight; output tokens are capped so the estimate is an upper bound on output.
+
+38. **Prices are not shipped.** Provider prices change and none are assumed. Platform AI stays unavailable until an administrator activates a pricing version that includes the configured model.
+
+39. **MCP transports.** **Decision (M9):** remote Streamable-HTTP servers only. Local (stdio) servers would run arbitrary programs on our infrastructure. A self-hosted server can be exposed over HTTP and registered with `ALLOW_PRIVATE_ENDPOINTS`.
+
+40. **"Approved external actions" for MCP.** **Decision (M9):** tools are approved one by one with their schemas frozen; the assistant only sees approved tools; calling requires edit rights on the project; every call is audited.
+
+41. **Apify Actor choice.** **Decision (M9):** platform-level allowlist with strict input contracts. Seeds are disabled until an administrator verifies them against the Actors' current documentation.
+
+42. **"Use established statistical libraries or sandboxed execution services" (§10.3).** **Decision (M10):** in-process implementations of the common tests, using jStat for distributions, verified against SciPy. No user-supplied code is executed. Qualitative coding, histograms and scatter plots, and analysis scripts in R or Python are deferred.
+
+43. **Survey responses (§10.4).** **Decision (M10):** questionnaires are designed and exported (Word, plus an XLSX codebook and data-entry sheet); responses are collected outside ResearchMate and can be imported as a dataset. Public survey links, response summaries and collection status need participant-data handling (consent records, retention) and are deferred. Nothing implies ethics approval.
+
+44. **Methodology and reporting tools (§10.5, §10.9).** **Decision (M10):** shipped the sample-size calculators (with formulas and assumptions), the proposal, progress and defense decks and the status report. Design comparison, operationalisation and alignment matrices, checklists, posters and executive summaries are deferred.
+
+45. **Notifications, search and retention had no phase (§30, §31, §29).** **Decision (M11):** built in the hardening milestone, since production needs them: notifications with preferences, project/workspace full-text search, workspace deletion with a 30-day grace and account pseudonymisation. pgvector semantic search is deferred.
+
+46. **"Malware scanning where available" (§29).** **Decision (M11):** optional ClamAV (clamd INSTREAM), fail closed when configured but unreachable.
+
+47. **Financial record retention after deletion.** **Decision (M11):** invoices, payments and ledger entries are copied to an immutable `retained_financial_records` table before an organization is purged; the retention period is the operator's (jurisdiction-specific), documented in the deployment guide.
+
+48. **Remaining dependency advisories.** zod 3.x (no patched 3.x release; request bodies are size-capped; migrate to zod 4) and minimatch via exceljs's archiver (unused code path).
+

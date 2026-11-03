@@ -58,7 +58,7 @@ export interface Workspace {
 export const requireWorkspace = cache(async (): Promise<Workspace> => {
   const session = await requireSession();
   const organizations = await listUserOrganizations(db(), session.user.id);
-  if (organizations.length === 0) redirect("/app/organizations/new");
+  if (organizations.length === 0) redirect("/workspace");
   const preferred = (await cookies()).get(ORG_COOKIE)?.value;
   const chosen = organizations.find((o) => o.id === preferred) ?? organizations[0]!;
   const org = await getOrgAccess(db(), session.user.id, chosen.id);

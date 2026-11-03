@@ -7,7 +7,7 @@
  */
 
 export type FeatureDefinition =
-  | { kind: "limit"; description: string; unit: "count" | "bytes" }
+  | { kind: "limit"; description: string; unit: "count" | "bytes" | "micro_usd" }
   | { kind: "flag"; description: string }
   | { kind: "tier"; description: string; tiers: readonly string[] };
 
@@ -18,6 +18,10 @@ export const FEATURES = {
   "files.max_size_bytes": { kind: "limit", unit: "bytes", description: "Maximum size of a single uploaded file" },
   "storage.max_bytes": { kind: "limit", unit: "bytes", description: "Total managed storage per organization" },
   "members.max": { kind: "limit", unit: "count", description: "Organization members" },
+  "planning.tasks.max": { kind: "limit", unit: "count", description: "Tasks and milestones per project" },
+  "ai.runs.monthly": { kind: "limit", unit: "count", description: "AI agent runs per month" },
+  "ai.platform": { kind: "flag", description: "Platform-funded AI (no own key needed), charged to credits/allowance" },
+  "ai.platform.allowance": { kind: "limit", unit: "micro_usd", description: "Platform AI and services included each month (micro-USD)" },
 
   // Tiered capabilities. The first tier always means "not available".
   "ai.agents": { kind: "tier", tiers: ["none", "limited", "full"], description: "AI agents and workflows" },
@@ -81,6 +85,10 @@ export const PLAN_SEEDS: PlanSeed[] = [
       "files.max_size_bytes": 5 * MB,
       "storage.max_bytes": 5 * MB,
       "members.max": 1,
+      "planning.tasks.max": 20,
+      "ai.runs.monthly": 0,
+      "ai.platform": false,
+      "ai.platform.allowance": 0,
       "ai.agents": "none",
       "research.web": "none",
       "planning.gantt": "overview",
@@ -110,6 +118,10 @@ export const PLAN_SEEDS: PlanSeed[] = [
       "files.max_size_bytes": 20 * MB,
       "storage.max_bytes": 500 * MB,
       "members.max": 3,
+      "planning.tasks.max": null,
+      "ai.runs.monthly": 50,
+      "ai.platform": true,
+      "ai.platform.allowance": 1_000_000,
       "ai.agents": "limited",
       "research.web": "limited",
       "planning.gantt": "full",
@@ -139,6 +151,10 @@ export const PLAN_SEEDS: PlanSeed[] = [
       "files.max_size_bytes": 50 * MB,
       "storage.max_bytes": 10 * GB,
       "members.max": 5,
+      "planning.tasks.max": null,
+      "ai.runs.monthly": null,
+      "ai.platform": true,
+      "ai.platform.allowance": 5_000_000,
       "ai.agents": "full",
       "research.web": "full",
       "planning.gantt": "full",
@@ -168,6 +184,10 @@ export const PLAN_SEEDS: PlanSeed[] = [
       "files.max_size_bytes": 100 * MB,
       "storage.max_bytes": 50 * GB,
       "members.max": 50,
+      "planning.tasks.max": null,
+      "ai.runs.monthly": null,
+      "ai.platform": true,
+      "ai.platform.allowance": 20_000_000,
       "ai.agents": "full",
       "research.web": "full",
       "planning.gantt": "full",

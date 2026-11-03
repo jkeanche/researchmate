@@ -6,7 +6,8 @@ import { getSession } from "@/server/session";
 
 export const metadata = { title: "Create account" };
 
-export default async function RegisterPage() {
+export default async function RegisterPage({ searchParams }: { searchParams: Promise<{ email?: string }> }) {
+  const presetEmail = ((await searchParams).email ?? "").slice(0, 320);
   if (await getSession()) redirect("/app");
   return (
     <>
@@ -15,7 +16,7 @@ export default async function RegisterPage() {
       <div className="mt-6">
         <ActionForm action={registerAction} submitLabel="Create account" pendingLabel="Creating account…">
           <Field label="Your name" name="displayName" autoComplete="name" required maxLength={100} />
-          <Field label="Email" name="email" type="email" autoComplete="email" required />
+          <Field label="Email" name="email" type="email" autoComplete="email" required defaultValue={presetEmail} />
           <Field label="Password" name="password" type="password" autoComplete="new-password" required minLength={10} hint="At least 10 characters. A short phrase works well." />
           <Field label="Confirm password" name="confirmPassword" type="password" autoComplete="new-password" required minLength={10} />
           <label className="flex items-start gap-2 text-sm">

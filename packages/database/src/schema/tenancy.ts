@@ -17,7 +17,11 @@ export const organizations = pgTable(
       .references(() => users.id, { onDelete: "restrict" }),
     createdAt: ts("created_at").notNull().defaultNow(),
     updatedAt: ts("updated_at").notNull().defaultNow(),
+    /** Scheduled deletion: inaccessible from deletedAt, purged after purgeAfter (restorable until then). */
     deletedAt: ts("deleted_at"),
+    purgeAfter: ts("purge_after"),
+    /** Set by the purge job; lets append-only guards permit deleting this organization's rows. */
+    purgeStartedAt: ts("purge_started_at"),
   },
   (t) => [
     uniqueIndex("organizations_slug_unique").on(t.slug),
@@ -97,3 +101,19 @@ export const auditLogs = pgTable(
     index("audit_logs_target_idx").on(t.targetType, t.targetId),
   ],
 );
+
+/**
+ * Financial records kept after an organization is purged (invoices, payments,
+ * ledger), because tax and accounting rules may require them for years after
+ * the research content is gone. No foreign keys: the organization row is deleted.
+ */
+export const retainedFinancialRecords = pgTable("retained_financial_records", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  organizationId: uuid("organization_id").notNull(),
+  organizationName: text("organization_name").notNull(),
+  deletedAt: ts("deleted_at"),
+  purgedAt: ts("purged_at").notNull().defaultNow(),
+  invoices: jsonb("invoices").$type<unknown[]>().notNull(),
+  payments: jsonb("payments").$type<unknown[]>().notNull(),
+  ledger: jsonb("ledger").$type<unknown[]>().notNull(),
+});

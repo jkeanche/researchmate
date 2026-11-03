@@ -87,7 +87,11 @@ export async function createProjectAction(_: FormState, form: FormData): Promise
   return handle(async () => {
     const { session, org } = await requireWorkspace();
     // Validation happens in the service; the cast only narrows FormData strings.
-    const project = await projectService().create(session.user.id, org.organizationId, projectFields(form) as never);
+    const tpl = str(form, "workflowTemplateKey");
+    const project = await projectService().create(session.user.id, org.organizationId, {
+      ...projectFields(form),
+      ...(tpl === "auto" || !form.has("workflowTemplateKey") ? {} : { workflowTemplateKey: tpl }),
+    } as never);
     redirect(`/app/projects/${project.id}`);
   });
 }
