@@ -2,6 +2,14 @@
 
 Newest first. One entry per working session.
 
+## 2026-11-04 — Platform administration console and enquiries
+
+- New `@researchmate/admin` package: administrator guard (re-checked in the database on every call, so revoking takes effect at once), overview statistics, users (verify, password reset, sign out everywhere, 2FA reset, disable/enable, grant/revoke administrator), organizations (assign plan with optional end date, change end date, cancel, feature overrides with expiry, credit adjustments, restore), subscriptions, plans (create, edit, retire, default, entitlements) and price points, audit log, Apify allowlist. Every change is audited with a reason.
+- Enquiries (§27 support_tickets): migration 0013 (`support_tickets`, `support_ticket_messages`); public `/contact` (rate limited per IP and email, honeypot), signed-in **Help**, admin inbox with replies, internal notes, assignment and priority. Guests follow their enquiry through a link signed with APP_SECRET (nothing stored). New notification kinds `support.enquiry`, `support.reply`.
+- Retired plans can no longer be bought (catalogue and checkout check the plan is active).
+- UI: `/app/admin` with Overview, Users, Organizations, Subscriptions, Plans & prices, Payments & AI pricing, Enquiries, Audit log, System. Landing page links to Contact; stale "online payment coming soon" text replaced.
+- Tests: 17 new integration tests (225 total) and a new end-to-end spec covering the guest enquiry round trip, Help, user disabling, plan assignment, overrides and plan editing; all 16 E2E specs pass. (In this VM Google Chrome crashes; the suite ran on Playwright's bundled Chromium with `E2E_BROWSER_CHANNEL=""`.)
+
 ## 2026-11-03 — Native Ubuntu install (Nginx + PostgreSQL, no Docker)
 
 - `infrastructure/scripts/install-ubuntu.sh`: one command installs packages, creates the service user, database and role, writes `/etc/researchmate/researchmate.env` with generated secrets (kept on re-runs), configures Nginx (Let's Encrypt or own certificate), builds a release, migrates, switches the `current` link, installs systemd units and creates the administrator. Re-running upgrades.

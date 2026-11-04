@@ -138,6 +138,24 @@ Optional features are switched on in the settings file; `.env.example` in the re
 
 Restart the services after changing them.
 
+## Administering the platform
+
+Sign in as a platform administrator and open **Administration** in the sidebar:
+
+| Page | What you can do |
+|---|---|
+| Overview | Users, organizations, paying customers, revenue (30 days), enquiries waiting, service health. |
+| Users | Search; verify an email; send a password reset; sign someone out everywhere; reset two-factor; disable or enable an account; grant or remove the administrator role. |
+| Organizations | Plan, usage and members; assign a plan without payment (optionally until a date); change the end date; cancel; per-organization feature overrides; add or remove AI credit; restore a workspace scheduled for deletion. |
+| Subscriptions | Who is on which plan, filtered by paid, complimentary, ending soon, past due or ended. |
+| Plans & prices | Edit plan names, display prices and visibility; set what each plan includes (applies immediately); create plans; retire plans; set the default plan; add or switch off prices per currency and AI credit packs. |
+| Payments & AI pricing | Every payment (check with the provider, refund) and the AI cost price versions. |
+| Enquiries | Messages from the public **Contact** page (`/contact`) and signed-in users' **Help** page. Reply (emailed to the requester), add internal notes, assign, prioritise, resolve. Guests follow and reply through a private link in their email. |
+| Audit log | Every administrator action, with who did it and why. |
+| System | Health of the database, Redis, storage and worker; job queues; which integrations are configured; the Apify Actor allowlist. |
+
+Administrators are told about new enquiries in the app and by email. More administrators: Users → open the person → **Make platform administrator** (they need a verified email), or `--admin-email` on the installer.
+
 ## 5. Upgrades and rollback
 
 ```bash

@@ -14,7 +14,7 @@ export const test = base.extend<{ resetAuthRateLimits: void }>({
       const redis = new Redis(process.env.REDIS_URL ?? "redis://localhost:6379", { lazyConnect: true, maxRetriesPerRequest: 1 });
       try {
         await redis.connect();
-        const keys = [...(await redis.keys("rl:register:*")), ...(await redis.keys("rl:login:*")), ...(await redis.keys("rl:verify-resend:*"))];
+        const keys = [...(await redis.keys("rl:register:*")), ...(await redis.keys("rl:login:*")), ...(await redis.keys("rl:verify-resend:*")), ...(await redis.keys("rl:contact:*")), ...(await redis.keys("rl:help:*")), ...(await redis.keys("rl:support-reply:*"))];
         if (keys.length) await redis.del(...keys);
       } finally {
         redis.disconnect();

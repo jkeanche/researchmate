@@ -1,3 +1,4 @@
+import { AdminService, PlanAdminService, SupportService } from "@researchmate/admin";
 import { ToolkitService } from "@researchmate/toolkit";
 import { AuthService, getRedis, type EmailMessage, type Mailer, RedisRateLimiter } from "@researchmate/auth";
 import { getDb } from "@researchmate/database";
@@ -43,6 +44,9 @@ const g = globalThis as unknown as {
   __rmWeb?: WebCaptureService;
   __rmDocsQueue?: Queue<DocumentJob>;
   __rmFilesQueue?: Queue<FileJob>;
+  __rmAdmin?: AdminService;
+  __rmPlanAdmin?: PlanAdminService;
+  __rmSupport?: SupportService;
 };
 
 function emailQueue(): Queue<EmailJob> {
@@ -189,4 +193,22 @@ export async function driveService(): Promise<DriveService> {
 export async function toolkitService(): Promise<ToolkitService> {
   g.__rmToolkit ??= new ToolkitService(db(), { driver: await getStorageDriver() });
   return g.__rmToolkit;
+}
+
+/** Platform administration. Every method re-checks the actor is an administrator. */
+export function adminService(): AdminService {
+  g.__rmAdmin ??= new AdminService(db());
+  return g.__rmAdmin;
+}
+
+export function planAdminService(): PlanAdminService {
+  g.__rmPlanAdmin ??= new PlanAdminService(db());
+  return g.__rmPlanAdmin;
+}
+
+/** Enquiries: the contact form, Help, and the administrators' inbox. */
+export function supportService(): SupportService {
+  const e = env();
+  g.__rmSupport ??= new SupportService({ db: db(), mailer: new QueueMailer(), appUrl: e.APP_URL, secret: e.APP_SECRET });
+  return g.__rmSupport;
 }

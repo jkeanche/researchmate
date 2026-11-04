@@ -36,6 +36,7 @@ const config: NextConfig = {
   outputFileTracingExcludes: { "*": [".data/**", "**/.data/**", "tests/**"] },
   poweredByHeader: false,
   transpilePackages: [
+    "@researchmate/admin",
     "@researchmate/ai",
     "@researchmate/auth",
     "@researchmate/citations",

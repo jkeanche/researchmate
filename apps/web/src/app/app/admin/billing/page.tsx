@@ -8,7 +8,7 @@ import { adminBillingAction } from "@/server/actions/billing";
 import { paymentService } from "@/server/services";
 import { requireSession } from "@/server/session";
 
-export const metadata = { title: "Billing administration" };
+export const metadata = { title: "Payments & AI pricing · Administration" };
 
 const EXAMPLE = `[
   { "kind": "ai_model", "providerKey": "openai", "modelId": "<model id>", "inputCostMicrosPerMTok": 0, "outputCostMicrosPerMTok": 0 },
@@ -22,7 +22,7 @@ export default async function AdminBillingPage() {
   const [versions, list] = await Promise.all([svc.ledger.listPricing(), svc.adminPayments()]);
   return (
     <>
-      <PageHeader title="Billing administration" description="Pricing versions and payments. Platform administrators only." />
+      <PageHeader title="Payments & AI pricing" description="Provider cost prices for platform AI (with your margin), and every payment: check one with its provider or refund it." />
 
       <Section title="Pricing versions" description="Enter provider costs from the providers' current price lists (micro-USD per million tokens, or per unit). Customer price = cost ÷ (1 − margin). Active versions can't be edited; activate a new version to change prices. Past charges keep the version they used.">
         <ul className="mb-6 grid gap-3">

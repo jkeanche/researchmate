@@ -18,6 +18,8 @@ export const NOTIFICATION_KINDS = {
   "billing.subscription": { group: "Billing", label: "Subscription changes", inApp: true, email: true },
   "billing.payment_failed": { group: "Billing", label: "A payment fails", inApp: true, email: true },
   "drive.reauth": { group: "Integrations", label: "Google Drive needs to be reconnected", inApp: true, email: true },
+  "support.enquiry": { group: "Administration", label: "A new enquiry or a reply arrives (platform administrators)", inApp: true, email: true },
+  "support.reply": { group: "Support", label: "Our team replies to my enquiry", inApp: true, email: true },
   "security.alert": { group: "Security", label: "Security changes to my account (always emailed)", inApp: true, email: true, locked: true },
 } as const satisfies Record<string, { group: string; label: string; inApp: boolean; email: boolean; locked?: boolean }>;
 

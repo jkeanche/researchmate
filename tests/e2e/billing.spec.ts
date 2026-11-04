@@ -44,7 +44,8 @@ test("pricing, credit purchase, verified webhook and invoice", async ({ page, re
   await expect(page.getByRole("heading", { name: /Welcome back/ })).toBeVisible();
 
   // Platform admin: draft and activate a pricing version
-  await page.getByRole("link", { name: "Billing admin" }).click();
+  await page.getByRole("link", { name: /Administration/ }).click();
+  await page.getByRole("navigation", { name: "Administration" }).getByRole("link", { name: "Payments & AI pricing" }).click();
   await page.getByLabel("Target margin (%)").fill("40");
   await page.getByLabel("Notes (sources of the costs)").fill("E2E test prices");
   await page.getByLabel("Price lines (JSON)").fill(JSON.stringify([{ kind: "service", serviceKey: "ocr.pages", unit: "page", unitCostMicros: 1200 }]));

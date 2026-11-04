@@ -42,6 +42,7 @@ export default async function Home() {
         <Wordmark />
         <nav className="flex items-center gap-2 text-sm">
           <a href="#pricing" className="hidden px-3 py-2 sm:inline">Pricing</a>
+          <Link href="/contact" className="hidden px-3 py-2 sm:inline">Contact</Link>
           {session ? (
             <Link href="/app" className="btn btn-primary">Open workspace</Link>
           ) : (
@@ -121,14 +122,14 @@ export default async function Home() {
                 </tbody>
               </table>
             </div>
-            <p className="mt-6 text-sm text-graphite">Online payment is coming soon. Until then, paid plans are activated by our team on request.</p>
+            <p className="mt-6 text-sm text-graphite">Pay by card or mobile money from Settings → Billing. Need a plan for a department or institution? <Link href="/contact?topic=sales">Contact us</Link>.</p>
           </div>
         </section>
       </main>
 
       <footer className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-5 py-8 text-sm text-graphite">
         <Wordmark />
-        <p>Built for researchers. You own your work.</p>
+        <p>Built for researchers. You own your work. · <Link href="/contact">Contact us</Link></p>
       </footer>
     </div>
   );

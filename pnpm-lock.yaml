@@ -22,6 +22,9 @@ importers:
       '@playwright/test':
         specifier: 1.63.0
         version: 1.63.0
+      '@researchmate/admin':
+        specifier: workspace:*
+        version: link:packages/admin
       '@researchmate/ai':
         specifier: workspace:*
         version: link:packages/ai
@@ -124,6 +127,9 @@ importers:
       '@node-rs/argon2':
         specifier: 2.2.2
         version: 2.2.2
+      '@researchmate/admin':
+        specifier: workspace:*
+        version: link:../../packages/admin
       '@researchmate/ai':
         specifier: workspace:*
         version: link:../../packages/ai
@@ -273,6 +279,24 @@ importers:
       '@types/nodemailer':
         specifier: 7.0.12
         version: 7.0.12
+
+  packages/admin:
+    dependencies:
+      '@researchmate/database':
+        specifier: workspace:*
+        version: link:../database
+      '@researchmate/entitlements':
+        specifier: workspace:*
+        version: link:../entitlements
+      '@researchmate/shared':
+        specifier: workspace:*
+        version: link:../shared
+      '@researchmate/tenancy':
+        specifier: workspace:*
+        version: link:../tenancy
+      drizzle-orm:
+        specifier: 0.45.4
+        version: 0.45.4(postgres@3.4.9)
 
   packages/ai:
     dependencies:

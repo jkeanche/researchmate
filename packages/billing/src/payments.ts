@@ -54,7 +54,8 @@ export class PaymentService {
       .select({ p: pricePoints, planName: plans.name, planKey: plans.key })
       .from(pricePoints)
       .leftJoin(plans, eq(plans.id, pricePoints.planId))
-      .where(eq(pricePoints.active, 1))
+      // A plan an administrator has retired can't be bought, even if a price is still active.
+      .where(and(eq(pricePoints.active, 1), or(isNull(pricePoints.planId), eq(plans.isActive, true))))
       .orderBy(asc(pricePoints.kind), asc(pricePoints.currency), asc(pricePoints.amountMinor));
   }
 
@@ -73,6 +74,7 @@ export class PaymentService {
     if (!provider.currencies.includes(pp.currency)) throw new AppError("VALIDATION", `${provider.name} can't take payments in ${pp.currency} here.`);
     const [u] = await this.db.select({ email: users.email }).from(users).where(eq(users.id, actorUserId));
     const [plan] = pp.planId ? await this.db.select().from(plans).where(eq(plans.id, pp.planId)) : [];
+    if (pp.planId && !plan?.isActive) throw new AppError("VALIDATION", "That plan is no longer available.");
     const reference = `rm_${randomUUID().replace(/-/g, "")}`;
     const [row] = await this.db
       .insert(payments)

@@ -14,3 +14,4 @@ export * from "./ledger";
 export * from "./external";
 export * from "./toolkit";
 export * from "./notifications";
+export * from "./support";

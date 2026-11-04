@@ -112,6 +112,13 @@ step "Checking the server"
 [ "$(id -u)" -eq 0 ] || die "run as root (sudo $0 …)"
 SRC="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 [ -f "$SRC/pnpm-workspace.yaml" ] && [ -d "$SRC/apps/web" ] || die "run this script from a ResearchMate checkout ($SRC isn't one)"
+APP_REAL="$(realpath -m "$APP_DIR")"
+case "$APP_REAL/" in
+  "$SRC"/*) die "--app-dir ($APP_DIR) can't be the code folder or inside it ($SRC): releases are copied from the code. Put the code in a subfolder, e.g. $APP_DIR/source, and run the script from there." ;;
+esac
+case "$SRC/" in
+  "$APP_REAL"/releases/*|"$APP_REAL"/current/*) die "run the script from your copy of the code, not from an installed release ($SRC)" ;;
+esac
 . /etc/os-release
 case "${ID:-}:${VERSION_ID:-}" in
   ubuntu:22.04|ubuntu:24.04) ok "Ubuntu $VERSION_ID" ;;
@@ -282,8 +289,15 @@ PASS_ENV=()
 for v in HTTP_PROXY HTTPS_PROXY NO_PROXY http_proxy https_proxy no_proxy NODE_EXTRA_CA_CERTS SSL_CERT_FILE; do
   if [ -n "${!v:-}" ]; then PASS_ENV+=("$v=${!v}"); fi
 done
+# Scripts call `pnpm` by name (e.g. db:migrate); this shim makes that the pinned version,
+# not whatever pnpm the server may already have installed globally.
+SHIM_DIR="$APP_DIR/.cache/bin"
+install -d -m 0755 -o "$APP_USER" -g "$APP_USER" "$APP_DIR/.cache"
+install -d -m 0755 "$SHIM_DIR"
+printf '#!/bin/sh\nexec "%s" pnpm@%s "$@"\n' "$COREPACK_BIN" "$PNPM_VERSION" > "$SHIM_DIR/pnpm"
+chmod 0755 "$SHIM_DIR/pnpm"
 as_user() {
-  runuser -u "$APP_USER" -- env -i HOME="$APP_DIR" PATH="$(dirname "$NODE_BIN"):/usr/local/bin:/usr/bin:/bin" \
+  runuser -u "$APP_USER" -- env -i HOME="$APP_DIR" PATH="$SHIM_DIR:$(dirname "$NODE_BIN"):/usr/local/bin:/usr/bin:/bin" \
     COREPACK_ENABLE_DOWNLOAD_PROMPT=0 COREPACK_HOME="$APP_DIR/.cache/corepack" NEXT_TELEMETRY_DISABLED=1 \
     ${PASS_ENV[@]+"${PASS_ENV[@]}"} "$@"
 }
@@ -418,8 +432,11 @@ REV="$(git -C "$SRC" rev-parse --short HEAD 2>/dev/null || echo src)"
 REL="$APP_DIR/releases/$STAMP-$REV"
 install -d -m 0755 -o "$APP_USER" -g "$APP_USER" "$REL"
 rsync -a --delete --exclude node_modules --exclude .next --exclude .git --exclude '.env' --exclude '.env.*' \
-  --exclude 'test-results' --exclude 'dump.rdb' "$SRC/" "$REL/"
-cp "$SRC/.env.example" "$REL/.env.example"
+  --exclude 'test-results' --exclude 'dump.rdb' --exclude '/releases' --exclude '/current' "$SRC/" "$REL/"
+for f in package.json pnpm-lock.yaml pnpm-workspace.yaml apps/web/package.json apps/worker/package.json packages/database/migrations/meta/_journal.json; do
+  [ -e "$SRC/$f" ] || die "the code in $SRC is incomplete ($f is missing). Copy it again, ideally with: git clone researchmate.bundle"
+done
+if [ -f "$SRC/.env.example" ]; then cp "$SRC/.env.example" "$REL/.env.example"; fi
 chown -R "$APP_USER:$APP_USER" "$REL"
 info "release $REL"
 as_user bash -c "cd '$REL' && '$COREPACK_BIN' pnpm@$PNPM_VERSION install --frozen-lockfile --prefer-offline >/dev/null"

@@ -21,7 +21,7 @@ export const FEATURES = {
   "planning.tasks.max": { kind: "limit", unit: "count", description: "Tasks and milestones per project" },
   "ai.runs.monthly": { kind: "limit", unit: "count", description: "AI agent runs per month" },
   "ai.platform": { kind: "flag", description: "Platform-funded AI (no own key needed), charged to credits/allowance" },
-  "ai.platform.allowance": { kind: "limit", unit: "micro_usd", description: "Platform AI and services included each month (micro-USD)" },
+  "ai.platform.allowance": { kind: "limit", unit: "micro_usd", description: "Platform AI and services included each month" },
 
   // Tiered capabilities. The first tier always means "not available".
   "ai.agents": { kind: "tier", tiers: ["none", "limited", "full"], description: "AI agents and workflows" },

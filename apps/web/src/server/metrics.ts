@@ -93,3 +93,18 @@ export async function renderMetrics(): Promise<string> {
   metric("process_uptime_seconds", "Uptime of the web process.", "gauge", [[{}, Math.round(process.uptime())]]);
   return `${out.join("\n")}\n`;
 }
+
+/** For the administrators' System page: dependencies, worker and queues. */
+export async function systemSnapshot() {
+  const dep = async (fn: () => Promise<unknown>) => (await timed(fn).then(() => "ok" as const).catch(() => "error" as const));
+  const [database, redis, storage] = await Promise.all([dep(() => db().execute(sql`select 1`)), dep(() => getRedis().ping()), dep(async () => (await getStorageDriver()).healthCheck())]);
+  const workerAgeSeconds = await workerHeartbeatAge().catch(() => null);
+  const queueCounts: { queue: string; counts: Record<string, number> }[] = [];
+  if (redis === "ok") {
+    for (const q of queues()) {
+      const c = await timed(() => q.getJobCounts("waiting", "active", "delayed", "failed")).catch(() => null);
+      if (c) queueCounts.push({ queue: q.name, counts: c });
+    }
+  }
+  return { database, redis, storage, workerAgeSeconds, queues: queueCounts };
+}
